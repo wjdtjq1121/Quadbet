@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quadbet 설정 가이드</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+        }
+
+        .warning h2 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .step {
+            background: #f8f9fa;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        .step h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .step p {
+            color: #555;
+            line-height: 1.8;
+            margin-bottom: 10px;
+        }
+
+        .code-box {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+
+        .code-box pre {
+            margin: 0;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-success {
+            background: #27ae60;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            margin-top: 30px;
+            border-radius: 8px;
+        }
+
+        .success-box h3 {
+            color: #155724;
+            margin-bottom: 10px;
+        }
+
+        ul {
+            margin-left: 20px;
+            line-height: 2;
+        }
+
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 Quadbet 설정 가이드</h1>
+            <p>방 만들기가 작동하지 않나요? 5분이면 해결됩니다!</p>
+        </div>
+
+        <div class="content">
+            <div class="warning">
+                <h2>⚠️ 중요: Firebase 보안 규칙 설정 필요!</h2>
+                <p>
+                    현재 "방 만들기" 버튼을 눌러도 아무 일이 일어나지 않는다면,
+                    <strong>Firebase Realtime Database의 보안 규칙이 설정되지 않았기 때문입니다.</strong>
+                </p>
+                <p>아래 단계를 따라 5분 안에 설정을 완료하세요!</p>
+            </div>
+
+            <div class="step">
+                <h3>1️⃣ Firebase Console 접속</h3>
+                <p>
+                    1. <a href="https://console.firebase.google.com/" target="_blank" class="highlight">https://console.firebase.google.com/</a> 클릭
+                </p>
+<p>
+                    2. Google 계정으로 로그인
+                </p>
+                <p>
+                    3. <span class="highlight">quadbet</span> 프로젝트 선택
+                </p>
+                <a href="https://console.firebase.google.com/" target="_blank" class="btn">Firebase Console 열기 →</a>
+            </div>
+
+            <div class="step">
+                <h3>2️⃣ Realtime Database 메뉴 찾기</h3>
+                <p>
+                    1. 왼쪽 사이드바에서 <span class="highlight">"Realtime Database"</span> 클릭
+                </p>
+                <p>
+                    2. 상단 탭에서 <span class="highlight">"규칙"</span> 클릭
+                </p>
+            </div>
+
+            <div class="step">
+                <h3>3️⃣ 보안 규칙 설정</h3>
+                <p>아래 코드를 복사해서 붙여넣으세요:</p>
+
+                <div class="code-box">
+<pre>{
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}</pre>
+                </div>
+
+                <p><strong>⚠️ 테스트/개발용 규칙입니다.</strong> 실제 서비스 배포 시에는 더 안전한 규칙이 필요합니다.</p>
+            </div>
+
+            <div class="step">
+                <h3>4️⃣ 규칙 게시</h3>
+                <p>
+                    1. 코드를 붙여넣은 후 <span class="highlight">"게시"</span> 버튼 클릭
+                </p>
+                <p>
+                    2. 확인 팝업이 뜨면 "게시" 클릭
+                </p>
+            </div>
+
+            <div class="step">
+                <h3>5️⃣ 테스트</h3>
+                <p>
+                    1. Quadbet 페이지로 돌아가기
+                </p>
+                <p>
+                    2. 페이지 새로고침 (F5)
+                </p>
+                <p>
+                    3. 닉네임 입력 → "방 만들기" 클릭
+                </p>
+                <p>
+                    4. 대기실이 나타나면 <strong>성공!</strong> ✅
+                </p>
+            </div>
+
+            <div class="success-box">
+                <h3>✅ 설정 완료 후</h3>
+                <p>이제 다음 기능들을 사용할 수 있습니다:</p>
+                <ul>
+                    <li>방 만들기 및 친구 초대</li>
+                    <li>봇으로 빈 자리 채우기 (혼자 테스트 가능)</li>
+                    <li>실시간 멀티플레이어 게임</li>
+                    <li>티추 선언 및 점수 계산</li>
+                </ul>
+            </div>
+
+            <div style="text-align: center; margin-top: 40px;">
+                <a href="index.html" class="btn btn-success">게임 시작하기 →</a>
+                <a href="test.html" class="btn">테스트 페이지</a>
+            </div>
+
+            <div style="margin-top: 40px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                <h3>🐛 여전히 문제가 있나요?</h3>
+                <p style="margin-top: 10px;">
+                    1. F12를 눌러 개발자 도구 열기<br>
+                    2. Console 탭에서 에러 메시지 확인<br>
+                    3. "Permission denied" 에러가 있다면 위 단계를 다시 확인<br>
+                    4. 그래도 안 되면 <a href="test.html">테스트 페이지</a>에서 상세 진단
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
