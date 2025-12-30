@@ -26,6 +26,8 @@ let currentRoom = {
 };
 
 let roomListeners = [];
+let botPlayers = {}; // Track which players are bots
+let botTimers = {}; // Track bot play timers
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -42,6 +44,18 @@ function generateRoomCode() {
 
 function generateUserId() {
     return 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+function generateBotId() {
+    return 'bot_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+function generateBotName() {
+    const botNames = [
+        '🤖 알파봇', '🤖 베타봇', '🤖 감마봇', '🤖 델타봇',
+        '🤖 제타봇', '🤖 오메가봇', '🤖 시그마봇', '🤖 뮤봇'
+    ];
+    return botNames[Math.floor(Math.random() * botNames.length)];
 }
 
 // ==================== NICKNAME SCREEN ====================
@@ -261,15 +275,18 @@ function joinWaitingRoom(roomCode) {
     // Enable/disable buttons
     const readyBtn = document.getElementById('ready-btn');
     const startBtn = document.getElementById('start-btn');
+    const fillBotsBtn = document.getElementById('fill-bots-btn');
 
     if (currentRoom.isHost) {
         readyBtn.style.display = 'none';
         startBtn.style.display = 'inline-block';
         startBtn.disabled = true;
+        fillBotsBtn.style.display = 'inline-block';
     } else {
         readyBtn.style.display = 'inline-block';
         readyBtn.disabled = false;
         startBtn.style.display = 'none';
+        fillBotsBtn.style.display = 'none';
     }
 }
 
@@ -360,6 +377,54 @@ function leaveRoom() {
 
         showScreen('lobby-screen');
     }
+}
+
+// ==================== BOT FUNCTIONS ====================
+
+function fillWithBots() {
+    if (!currentRoom.isHost) {
+        alert('방장만 봇을 추가할 수 있습니다!');
+        return;
+    }
+
+    const roomRef = database.ref(`rooms/${currentRoom.code}`);
+
+    roomRef.once('value').then((snapshot) => {
+        const room = snapshot.val();
+        if (!room) return;
+
+        const updates = {};
+        let addedBots = 0;
+
+        // Find empty positions and add bots
+        for (let i = 0; i < 4; i++) {
+            if (!room.players || !room.players[i]) {
+                const botId = generateBotId();
+                const botName = generateBotName();
+
+                updates[`rooms/${currentRoom.code}/players/${i}`] = {
+                    id: botId,
+                    nickname: botName,
+                    ready: true,
+                    position: i,
+                    isBot: true
+                };
+
+                botPlayers[i] = true;
+                addedBots++;
+            }
+        }
+
+        if (addedBots > 0) {
+            updates[`rooms/${currentRoom.code}/playerCount`] = (room.playerCount || 0) + addedBots;
+
+            database.ref().update(updates).then(() => {
+                console.log(`${addedBots}개의 봇이 추가되었습니다.`);
+            });
+        } else {
+            alert('이미 모든 자리가 차있습니다!');
+        }
+    });
 }
 
 // ==================== GAME LOGIC ====================
@@ -463,12 +528,15 @@ function startMultiplayerGame(room) {
     showScreen('game-screen');
     gameState = room.gameState;
 
-    // Set player names
+    // Set player names and track bots
     const positions = ['south', 'west', 'north', 'east'];
     positions.forEach((pos, index) => {
         const player = room.players[index];
         if (player) {
             document.getElementById(`${pos}-name`).textContent = player.nickname;
+            if (player.isBot) {
+                botPlayers[index] = true;
+            }
         }
     });
 
@@ -479,10 +547,20 @@ function startMultiplayerGame(room) {
         if (newGameState) {
             gameState = newGameState;
             renderGame();
+
+            // Trigger bot play if it's a bot's turn
+            if (botPlayers[gameState.currentPlayer] && gameState.roundActive) {
+                triggerBotPlay();
+            }
         }
     });
 
     renderGame();
+
+    // Trigger initial bot play if needed
+    if (botPlayers[gameState.currentPlayer] && gameState.roundActive) {
+        triggerBotPlay();
+    }
 }
 
 function getCardDisplay(card) {
@@ -869,6 +947,133 @@ function leaveGame() {
     if (confirm('게임을 나가시겠습니까?')) {
         leaveRoom();
     }
+}
+
+// ==================== BOT AI ====================
+
+function triggerBotPlay() {
+    const botPosition = gameState.currentPlayer;
+
+    // Clear any existing timer for this bot
+    if (botTimers[botPosition]) {
+        clearTimeout(botTimers[botPosition]);
+    }
+
+    // Add delay to simulate thinking (1-2 seconds)
+    const delay = 1000 + Math.random() * 1000;
+
+    botTimers[botPosition] = setTimeout(() => {
+        executeBotPlay(botPosition);
+    }, delay);
+}
+
+function executeBotPlay(botPosition) {
+    if (!gameState || !gameState.roundActive) return;
+    if (gameState.currentPlayer !== botPosition) return;
+
+    const hand = gameState.hands[botPosition];
+    if (!hand || hand.length === 0) return;
+
+    // Bot AI logic - try to find a valid play
+    const validPlay = findBotPlay(hand, gameState.currentPlay);
+
+    if (validPlay) {
+        // Bot plays cards
+        playBotCards(botPosition, validPlay);
+    } else {
+        // Bot passes
+        passBotTurn(botPosition);
+    }
+}
+
+function findBotPlay(hand, currentPlay) {
+    // If no current play, play lowest card/combination
+    if (!currentPlay) {
+        // Just play single lowest card for simplicity
+        return { type: 'single', value: hand[0].value, cards: [hand[0]] };
+    }
+
+    // Try to find a valid play that beats current play
+    const playType = currentPlay.type;
+    const playValue = currentPlay.value;
+    const playLength = currentPlay.cards.length;
+
+    // Try single cards
+    if (playType === 'single' && playLength === 1) {
+        for (let card of hand) {
+            if (card.value > playValue) {
+                return { type: 'single', value: card.value, cards: [card] };
+            }
+        }
+    }
+
+    // Try pairs
+    if (playType === 'pair' && playLength === 2) {
+        for (let i = 0; i < hand.length - 1; i++) {
+            if (hand[i].value === hand[i + 1].value && hand[i].value > playValue) {
+                return { type: 'pair', value: hand[i].value, cards: [hand[i], hand[i + 1]] };
+            }
+        }
+    }
+
+    // Try triples
+    if (playType === 'triple' && playLength === 3) {
+        for (let i = 0; i < hand.length - 2; i++) {
+            if (hand[i].value === hand[i + 1].value &&
+                hand[i + 1].value === hand[i + 2].value &&
+                hand[i].value > playValue) {
+                return { type: 'triple', value: hand[i].value, cards: [hand[i], hand[i + 1], hand[i + 2]] };
+            }
+        }
+    }
+
+    // For more complex combinations, just pass for now
+    // TODO: Implement straight, fullhouse, stairs detection
+
+    return null;
+}
+
+function playBotCards(botPosition, combination) {
+    // Remove cards from bot's hand
+    const botHand = gameState.hands[botPosition];
+    combination.cards.forEach(card => {
+        const index = botHand.findIndex(c =>
+            c.value === card.value &&
+            c.suit === card.suit &&
+            c.name === card.name
+        );
+        if (index > -1) botHand.splice(index, 1);
+    });
+
+    // Update game state
+    gameState.currentPlay = combination;
+    gameState.consecutivePasses = 0;
+
+    // Check if bot finished
+    if (botHand.length === 0) {
+        gameState.finishedPlayers.push(botPosition);
+
+        if (gameState.finishedPlayers.length === 3) {
+            endRound();
+            syncGameState();
+            return;
+        }
+    }
+
+    nextTurn();
+    syncGameState();
+}
+
+function passBotTurn(botPosition) {
+    gameState.consecutivePasses++;
+
+    if (gameState.consecutivePasses === 3) {
+        gameState.currentPlay = null;
+        gameState.consecutivePasses = 0;
+    }
+
+    nextTurn();
+    syncGameState();
 }
 
 // ==================== EVENT LISTENERS ====================
