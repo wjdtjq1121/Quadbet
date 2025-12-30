@@ -642,14 +642,16 @@ function initializeGameState() {
         });
         console.log('✅ 손패 정렬 완료');
 
-        console.log('🀄 마작 찾는 중...');
-        // Find player with Mahjong
+        console.log('🀄 마작(숫자 1) 찾는 중...');
+        // Find player with Mahjong (One)
         let startPlayer = 0;
         Object.entries(hands).forEach(([index, hand]) => {
-            const hasMahjong = hand.some(card => card.isSpecial && card.name === 'Mah Jong');
+            const hasMahjong = hand.some(card =>
+                card.isSpecial && (card.name === 'One' || card.name === 'Mah Jong')
+            );
             if (hasMahjong) {
                 startPlayer = parseInt(index);
-                console.log(`✅ 마작 발견: 플레이어 ${index}`);
+                console.log(`✅ 마작(숫자 1) 발견: 플레이어 ${index}가 선 플레이어입니다`);
             }
         });
 
@@ -833,13 +835,13 @@ function getCardDisplay(card) {
             'One': '1',           // 마작 → 숫자 1
             'Cat': '🐱',          // 개 → 고양이
             'Joker': '🃏',        // 불사조 → 컬러조커
-            'Agni': '🔥✨',       // 용 → 불의 정령 아그니
+            'Agni': '🧞‍♂️🔥',       // 용 → 불의 정령 아그니 (사람 형태)
             // 구버전 호환
             'Mah Jong': '1',
             'Dog': '🐱',
             'Phoenix': '🃏',
-            'Dragon': '🔥✨',    // 호랑이 → 아그니
-            'Tiger': '🔥✨'
+            'Dragon': '🧞‍♂️🔥',    // 호랑이 → 아그니
+            'Tiger': '🧞‍♂️🔥'
         };
         return { display: symbols[card.name] || card.name, suit: 'special' };
     }
@@ -1018,6 +1020,111 @@ function combinationContainsWish(combination, wish) {
     );
 
     return hasWishValue || hasJoker;
+}
+
+// Helper: Check if combination is a bomb
+function isBomb(combination) {
+    if (!combination || !combination.type) return false;
+    return combination.type === 'bomb-quad' || combination.type === 'bomb-straight';
+}
+
+function playBomb() {
+    if (selectedCards.length === 0) {
+        alert('카드를 선택해주세요!');
+        return;
+    }
+
+    const combination = validateCombination(selectedCards);
+    if (!combination) {
+        alert('유효하지 않은 조합입니다!');
+        return;
+    }
+
+    // Check if it's a bomb
+    if (!isBomb(combination)) {
+        alert('폭탄이 아닙니다! 폭탄은 4장의 동일한 숫자 또는 5장 이상의 같은 무늬 연속 카드입니다.');
+        return;
+    }
+
+    console.log('💣 폭탄 사용! 턴을 가져옵니다.');
+
+    // Check if it can beat the current bomb (if any)
+    if (gameState.currentPlay && isBomb(gameState.currentPlay)) {
+        if (!isValidPlay(combination, gameState.currentPlay)) {
+            alert('현재 폭탄보다 더 강한 폭탄을 내야 합니다!');
+            return;
+        }
+    }
+
+    // Check if Mah Jong (숫자 1) is played - ask for wish
+    if (containsMahJong(selectedCards)) {
+        console.log('🀄 숫자 1(마작) 카드 발견! 소원을 빌 수 있습니다.');
+
+        let wishValue = null;
+        while (true) {
+            const input = prompt('소원을 빌어주세요! (2~14 사이의 숫자)\n2~10: 숫자, 11: J, 12: Q, 13: K, 14: A\n\n입력하지 않으면 소원 없이 진행됩니다.');
+
+            if (input === null || input === '') {
+                console.log('❌ 소원을 빌지 않았습니다.');
+                break;
+            }
+
+            const parsed = parseInt(input);
+            if (parsed >= 2 && parsed <= 14) {
+                wishValue = parsed;
+                const valueNames = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+                const wishName = valueNames[wishValue] || wishValue;
+                console.log(`✨ 소원: ${wishName}`);
+                break;
+            } else {
+                alert('2~14 사이의 숫자를 입력해주세요!');
+            }
+        }
+
+        if (wishValue) {
+            gameState.wish = wishValue;
+            console.log(`🌟 소원이 설정되었습니다: ${wishValue}`);
+        }
+    }
+
+    // Remove cards from hand
+    const myHand = gameState.hands[currentRoom.playerPosition];
+    selectedCards.forEach(card => {
+        const index = myHand.findIndex(c => JSON.stringify(c) === JSON.stringify(card));
+        if (index > -1) myHand.splice(index, 1);
+    });
+
+    // Mark that this player has played a card
+    gameState.cardsPlayed[currentRoom.playerPosition] = true;
+
+    // Update game state
+    gameState.currentPlay = combination;
+    gameState.consecutivePasses = 0;
+    gameState.currentPlayer = currentRoom.playerPosition; // Take the turn!
+    console.log(`🔄 폭탄으로 턴 획득! 현재 플레이어: ${currentRoom.playerPosition}`);
+
+    // Clear wish if it was fulfilled
+    if (gameState.wish && combinationContainsWish(combination, gameState.wish)) {
+        console.log('✅ 소원이 성취되었습니다! 소원 클리어.');
+        gameState.wish = null;
+    }
+
+    selectedCards = [];
+
+    // Check if player finished
+    if (myHand.length === 0) {
+        console.log('🏁 플레이어가 모든 카드를 냈습니다!');
+        gameState.finishedPlayers.push(currentRoom.playerPosition);
+
+        if (gameState.finishedPlayers.length === 3) {
+            console.log('🎊 라운드 종료! (3명 완료)');
+            endRound();
+            syncGameState();
+            return;
+        }
+    }
+
+    syncGameState();
 }
 
 function playCards() {
@@ -1524,11 +1631,18 @@ function renderGame() {
 
         // Update button states
         const btnPlay = document.getElementById('btn-play');
+        const btnBomb = document.getElementById('btn-bomb');
         const btnPass = document.getElementById('btn-pass');
         const btnBetting = document.getElementById('btn-tichu'); // Using same button
 
         if (btnPlay) btnPlay.disabled = !isMyTurn() || !gameState.roundActive;
         if (btnPass) btnPass.disabled = !isMyTurn() || !gameState.roundActive;
+
+        // Bomb button is always enabled during active round (can play bombs anytime)
+        if (btnBomb) {
+            btnBomb.disabled = !gameState.roundActive;
+        }
+
         if (btnBetting && gameState.bettingCalls && currentRoom.playerPosition !== null) {
             // Can't bet if already bet or round is not active
             btnBetting.disabled = gameState.bettingCalls[currentRoom.playerPosition] !== null || !gameState.roundActive;
@@ -1959,6 +2073,7 @@ function passBotTurn(botPosition) {
 
 try {
     document.getElementById('btn-play').addEventListener('click', playCards);
+    document.getElementById('btn-bomb').addEventListener('click', playBomb);
     document.getElementById('btn-pass').addEventListener('click', passTurn);
     document.getElementById('btn-tichu').addEventListener('click', declareTichu);
     document.getElementById('btn-new-round').addEventListener('click', startNewRound);
