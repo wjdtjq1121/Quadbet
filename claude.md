@@ -5,6 +5,13 @@
 
 ## 버전 히스토리
 
+### v1.1.1 (2025-12-30)
+- Firebase 연결 디버깅 로그 추가
+- createRoom 함수에 상세 에러 처리 추가
+- Firebase 초기화 및 연결 상태 확인 기능 추가
+- FIREBASE_SETUP.md 문서 작성 (보안 규칙 설정 가이드)
+- 사용자 정보 유효성 검사 추가
+
 ### v1.1.0 (2025-12-30)
 - 테스트 봇 자동 참가 기능 추가
 - 방장이 "봇으로 채우기" 버튼으로 빈 자리에 봇 추가 가능
@@ -44,3 +51,26 @@
 - Firebase Realtime Database 사용
 - 반응형 UI 디자인
 - 실시간 동기화
+
+## Firebase 설정 필수!
+⚠️ **중요**: 앱을 실행하기 전에 Firebase Realtime Database 보안 규칙을 설정해야 합니다.
+자세한 내용은 `FIREBASE_SETUP.md` 파일을 참조하세요.
+
+### 빠른 설정:
+1. Firebase Console → Realtime Database → 규칙
+2. 다음 규칙 복사 & 게시:
+```json
+{
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}
+```
+
+## 디버깅
+브라우저 개발자 도구 (F12) → Console 탭에서 다음 로그 확인:
+- `Firebase 초기화 성공`
+- `Firebase 데이터베이스 연결됨`
+- `createRoom 호출됨`
+- `방 생성 성공!`

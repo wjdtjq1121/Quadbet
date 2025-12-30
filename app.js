@@ -10,8 +10,24 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
+let database;
+try {
+    firebase.initializeApp(firebaseConfig);
+    database = firebase.database();
+    console.log('Firebase 초기화 성공');
+
+    // Test database connection
+    database.ref('.info/connected').on('value', (snapshot) => {
+        if (snapshot.val() === true) {
+            console.log('Firebase 데이터베이스 연결됨');
+        } else {
+            console.log('Firebase 데이터베이스 연결 끊김');
+        }
+    });
+} catch (error) {
+    console.error('Firebase 초기화 실패:', error);
+    alert('Firebase 초기화 실패: ' + error.message);
+}
 
 // Global variables
 let currentUser = {
@@ -144,8 +160,19 @@ function updateRoomList(rooms) {
 }
 
 function createRoom() {
+    console.log('createRoom 호출됨');
+    console.log('현재 사용자:', currentUser);
+
+    if (!currentUser.id || !currentUser.nickname) {
+        alert('사용자 정보가 없습니다. 닉네임을 다시 설정해주세요.');
+        showScreen('nickname-screen');
+        return;
+    }
+
     const roomCode = generateRoomCode();
     const roomRef = database.ref('rooms/' + roomCode);
+
+    console.log('생성할 방 코드:', roomCode);
 
     const roomData = {
         code: roomCode,
@@ -162,7 +189,10 @@ function createRoom() {
         }
     };
 
+    console.log('방 데이터:', roomData);
+
     roomRef.set(roomData).then(() => {
+        console.log('방 생성 성공!');
         currentRoom.code = roomCode;
         currentRoom.isHost = true;
         currentRoom.playerPosition = 0;
@@ -172,6 +202,7 @@ function createRoom() {
 
         joinWaitingRoom(roomCode);
     }).catch((error) => {
+        console.error('방 생성 에러:', error);
         alert('방 생성 실패: ' + error.message);
     });
 }
