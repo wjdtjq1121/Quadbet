@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>티추 (Tichu) 카드 게임</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 1400px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .game-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .game-header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .score-board {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .team-score {
+            text-align: center;
+        }
+
+        .team-score h3 {
+            font-size: 1.2em;
+            margin-bottom: 5px;
+        }
+
+        .team-score .score {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .game-board {
+            padding: 30px;
+            position: relative;
+        }
+
+        .players-area {
+            display: grid;
+            grid-template-areas:
+                ". top ."
+                "left center right"
+                ". bottom .";
+            grid-template-columns: 250px 1fr 250px;
+            grid-template-rows: 150px 1fr 250px;
+            gap: 20px;
+            min-height: 600px;
+        }
+
+        .player {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 3px solid transparent;
+        }
+
+        .player.active {
+            border-color: #667eea;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .player.current-user {
+            background: #e3f2fd;
+        }
+
+        .player-top {
+            grid-area: top;
+        }
+
+        .player-left {
+            grid-area: left;
+        }
+
+        .player-right {
+            grid-area: right;
+        }
+
+        .player-bottom {
+            grid-area: bottom;
+        }
+
+        .player-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .player-name {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .player-cards-count {
+            background: #667eea;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.9em;
+        }
+
+        .tichu-badge {
+            display: inline-block;
+            background: #ff6b6b;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 0.8em;
+            margin-left: 5px;
+        }
+
+        .tichu-badge.grand {
+            background: #ffd700;
+            color: #333;
+        }
+
+        .center-area {
+            grid-area: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #2c3e50;
+            border-radius: 15px;
+            padding: 30px;
+            min-height: 300px;
+        }
+
+        .current-play {
+            text-align: center;
+            color: white;
+        }
+
+        .current-play h3 {
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+
+        .played-cards {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            width: 70px;
+            height: 100px;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            user-select: none;
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .card.selected {
+            transform: translateY(-20px);
+            border-color: #667eea;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .card.jade {
+            color: #27ae60;
+        }
+
+        .card.sword {
+            color: #333;
+        }
+
+        .card.pagoda {
+            color: #e74c3c;
+        }
+
+        .card.star {
+            color: #3498db;
+        }
+
+        .card.special {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            color: #333;
+            font-weight: bold;
+        }
+
+        .card-value {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .card-suit {
+            font-size: 1.2em;
+            margin-top: 5px;
+        }
+
+        .player-hand {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        .game-controls {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 2px solid #ddd;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #7f8c8d;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+
+        .game-info {
+            text-align: center;
+            color: white;
+            margin-top: 15px;
+            font-size: 1.1em;
+        }
+
+        .combination-type {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 15px;
+            border-radius: 5px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .finished-players {
+            margin-top: 20px;
+            color: white;
+            text-align: center;
+        }
+
+        .finished-player {
+            display: inline-block;
+            background: rgba(46, 204, 113, 0.3);
+            padding: 5px 15px;
+            border-radius: 5px;
+            margin: 5px;
+        }
+
+        /* Version Badge */
+        .version-badge {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            color: #667eea;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 9999;
+            border: 2px solid #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="version-badge">v1.0.0</div>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>🎴 티추 (Tichu)</h1>
+            <div class="score-board">
+                <div class="team-score">
+                    <h3>팀 1 (남-북)</h3>
+                    <div class="score" id="team1-score">0</div>
+                </div>
+                <div class="team-score">
+                    <h3>팀 2 (동-서)</h3>
+                    <div class="score" id="team2-score">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="game-board">
+            <div class="players-area">
+                <!-- Top Player (Partner) -->
+                <div class="player player-top" id="player-north">
+                    <div class="player-info">
+                        <div>
+                            <span class="player-name">북 (파트너)</span>
+                            <span id="north-tichu"></span>
+                        </div>
+                        <span class="player-cards-count" id="north-count">14</span>
+                    </div>
+                    <div class="player-hand" id="north-hand"></div>
+                </div>
+
+                <!-- Left Player (Opponent) -->
+                <div class="player player-left" id="player-west">
+                    <div class="player-info">
+                        <div>
+                            <span class="player-name">서 (상대)</span>
+                            <span id="west-tichu"></span>
+                        </div>
+                        <span class="player-cards-count" id="west-count">14</span>
+                    </div>
+                    <div class="player-hand" id="west-hand"></div>
+                </div>
+
+                <!-- Center Play Area -->
+                <div class="center-area">
+                    <div class="current-play">
+                        <h3 id="play-info">게임 시작</h3>
+                        <div class="played-cards" id="played-cards"></div>
+                        <div class="combination-type" id="combination-type"></div>
+                        <div class="finished-players" id="finished-players"></div>
+                    </div>
+                </div>
+
+                <!-- Right Player (Opponent) -->
+                <div class="player player-right" id="player-east">
+                    <div class="player-info">
+                        <div>
+                            <span class="player-name">동 (상대)</span>
+                            <span id="east-tichu"></span>
+                        </div>
+                        <span class="player-cards-count" id="east-count">14</span>
+                    </div>
+                    <div class="player-hand" id="east-hand"></div>
+                </div>
+
+                <!-- Bottom Player (You) -->
+                <div class="player player-bottom current-user" id="player-south">
+                    <div class="player-info">
+                        <div>
+                            <span class="player-name">남 (나)</span>
+                            <span id="south-tichu"></span>
+                        </div>
+                        <span class="player-cards-count" id="south-count">14</span>
+                    </div>
+                    <div class="player-hand" id="south-hand"></div>
+                </div>
+            </div>
+
+            <div class="game-info" id="game-info">
+                마작(1)을 가진 플레이어가 시작합니다
+            </div>
+        </div>
+
+        <div class="game-controls">
+            <button class="btn btn-warning" id="btn-grand-tichu">그랜드 티추 선언</button>
+            <button class="btn btn-warning" id="btn-tichu">티추 선언</button>
+            <button class="btn btn-primary" id="btn-play">카드 내기</button>
+            <button class="btn btn-secondary" id="btn-pass">패스</button>
+            <button class="btn btn-success" id="btn-new-round">새 라운드</button>
+            <button class="btn btn-danger" id="btn-restart">게임 재시작</button>
+        </div>
+    </div>
+
+    <!-- Modal for Grand Tichu -->
+    <div class="modal" id="grand-tichu-modal">
+        <div class="modal-content">
+            <h2>그랜드 티추</h2>
+            <p>첫 8장의 카드를 받았습니다. 그랜드 티추를 선언하시겠습니까?</p>
+            <p style="color: #e74c3c; margin-top: 10px;">성공 시 +200점, 실패 시 -200점</p>
+            <div class="modal-buttons">
+                <button class="btn btn-warning" id="modal-grand-tichu-yes">선언</button>
+                <button class="btn btn-secondary" id="modal-grand-tichu-no">패스</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Card suits and special cards
+        const SUITS = {
+            JADE: { name: 'jade', symbol: '♦', color: 'jade' },
+            SWORD: { name: 'sword', symbol: '♠', color: 'sword' },
+            PAGODA: { name: 'pagoda', symbol: '♥', color: 'pagoda' },
+            STAR: { name: 'star', symbol: '♣', color: 'star' }
+        };
+
+        const SPECIAL_CARDS = {
+            MAHJONG: { name: 'Mah Jong', value: 1, points: 0, isSpecial: true },
+            DOG: { name: 'Dog', value: 0, points: 0, isSpecial: true },
+            PHOENIX: { name: 'Phoenix', value: -1, points: -25, isSpecial: true },
+            DRAGON: { name: 'Dragon', value: 15, points: 25, isSpecial: true }
+        };
+
+        // Game state
+        const gameState = {
+            players: ['south', 'west', 'north', 'east'], // Team 1: south-north, Team 2: west-east
+            currentPlayer: 0,
+            hands: { south: [], west: [], north: [], east: [] },
+            selectedCards: [],
+            currentPlay: [],
+            currentPlayType: null,
+            currentPlayPlayer: null,
+            consecutivePasses: 0,
+            finishedPlayers: [],
+            roundScores: { team1: 0, team2: 0 },
+            totalScores: { team1: 0, team2: 0 },
+            tichuCalls: { south: null, west: null, north: null, east: null },
+            roundActive: false,
+            grandTichuPhase: false,
+            cardsDealt: 0
+        };
+
+        // Create deck
+        function createDeck() {
+            const deck = [];
+
+            // Add special cards
+            deck.push({ ...SPECIAL_CARDS.MAHJONG, suit: 'special' });
+            deck.push({ ...SPECIAL_CARDS.DOG, suit: 'special' });
+            deck.push({ ...SPECIAL_CARDS.PHOENIX, suit: 'special' });
+            deck.push({ ...SPECIAL_CARDS.DRAGON, suit: 'special' });
+
+            // Add regular cards (2-14 for each suit)
+            Object.values(SUITS).forEach(suit => {
+                for (let value = 2; value <= 14; value++) {
+                    deck.push({
+                        suit: suit.name,
+                        value: value,
+                        points: value === 5 ? 5 : (value === 10 || value === 13) ? 10 : 0,
+                        isSpecial: false
+                    });
+                }
+            });
+
+            return deck;
+        }
+
+        // Shuffle deck
+        function shuffleDeck(deck) {
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+            return deck;
+        }
+
+        // Deal cards
+        function dealCards() {
+            const deck = shuffleDeck(createDeck());
+            gameState.players.forEach((player, index) => {
+                gameState.hands[player] = [];
+                // Deal 8 cards first for Grand Tichu
+                for (let i = 0; i < 8; i++) {
+                    gameState.hands[player].push(deck[index * 14 + i]);
+                }
+            });
+            gameState.cardsDealt = 8;
+            gameState.grandTichuPhase = true;
+
+            // Show Grand Tichu modal for human player
+            document.getElementById('grand-tichu-modal').classList.add('active');
+
+            // AI players decide on Grand Tichu (simplified - random 10% chance)
+            gameState.players.forEach(player => {
+                if (player !== 'south' && Math.random() < 0.1) {
+                    gameState.tichuCalls[player] = 'grand';
+                }
+            });
+
+            // Store remaining cards for later
+            gameState.remainingDeck = deck;
+        }
+
+        // Complete dealing after Grand Tichu phase
+        function completeDeal() {
+            const deck = gameState.remainingDeck;
+            gameState.players.forEach((player, index) => {
+                for (let i = 8; i < 14; i++) {
+                    gameState.hands[player].push(deck[index * 14 + i]);
+                }
+            });
+
+            // Sort hands
+            gameState.players.forEach(player => {
+                sortHand(player);
+            });
+
+            gameState.cardsDealt = 14;
+            gameState.grandTichuPhase = false;
+
+            // Find player with Mahjong
+            let startPlayer = 0;
+            gameState.players.forEach((player, index) => {
+                const hasMahjong = gameState.hands[player].some(card =>
+                    card.isSpecial && card.name === 'Mah Jong'
+                );
+                if (hasMahjong) {
+                    startPlayer = index;
+                }
+            });
+
+            gameState.currentPlayer = startPlayer;
+            gameState.roundActive = true;
+            renderGame();
+            updateGameInfo('마작을 가진 플레이어가 시작합니다');
+        }
+
+        // Sort hand by value
+        function sortHand(player) {
+            gameState.hands[player].sort((a, b) => {
+                if (a.name === 'Dog') return -1;
+                if (b.name === 'Dog') return 1;
+                if (a.name === 'Phoenix') return a.value - b.value;
+                if (b.name === 'Phoenix') return a.value - b.value;
+                return a.value - b.value;
+            });
+        }
+
+        // Get card display info
+        function getCardDisplay(card) {
+            if (card.isSpecial) {
+                const symbols = {
+                    'Mah Jong': '🀄',
+                    'Dog': '🐕',
+                    'Phoenix': '🔥',
+                    'Dragon': '🐉'
+                };
+                return { display: symbols[card.name] || card.name, suit: 'special' };
+            }
+
+            const valueNames = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+            const display = valueNames[card.value] || card.value.toString();
+            const suit = SUITS[card.suit.toUpperCase()];
+            return { display, suit: suit ? suit.symbol : '', color: card.suit };
+        }
+
+        // Render card element
+        function renderCard(card, clickable = false) {
+            const cardEl = document.createElement('div');
+            const { display, suit, color } = getCardDisplay(card);
+
+            cardEl.className = `card ${color}`;
+            cardEl.innerHTML = `
+                <div class="card-value">${display}</div>
+                ${suit ? `<div class="card-suit">${suit}</div>` : ''}
+            `;
+
+            if (clickable) {
+                cardEl.onclick = () => toggleCardSelection(card, cardEl);
+            }
+
+            return cardEl;
+        }
+
+        // Toggle card selection
+        function toggleCardSelection(card, cardEl) {
+            const index = gameState.selectedCards.findIndex(c => c === card);
+            if (index > -1) {
+                gameState.selectedCards.splice(index, 1);
+                cardEl.classList.remove('selected');
+            } else {
+                gameState.selectedCards.push(card);
+                cardEl.classList.add('selected');
+            }
+        }
+
+        // Validate combination
+        function validateCombination(cards) {
+            if (cards.length === 0) return null;
+            if (cards.length === 1) {
+                return { type: 'single', value: cards[0].value, cards };
+            }
+
+            // Check for pair
+            if (cards.length === 2) {
+                if (cards[0].value === cards[1].value) {
+                    return { type: 'pair', value: cards[0].value, cards };
+                }
+            }
+
+            // Check for three of a kind
+            if (cards.length === 3) {
+                if (cards[0].value === cards[1].value && cards[1].value === cards[2].value) {
+                    return { type: 'triple', value: cards[0].value, cards };
+                }
+            }
+
+            // Check for four of a kind (bomb)
+            if (cards.length === 4) {
+                if (cards[0].value === cards[1].value &&
+                    cards[1].value === cards[2].value &&
+                    cards[2].value === cards[3].value) {
+                    return { type: 'bomb-quad', value: cards[0].value, cards };
+                }
+            }
+
+            // Check for full house
+            if (cards.length === 5) {
+                const sorted = [...cards].sort((a, b) => a.value - b.value);
+                if ((sorted[0].value === sorted[1].value && sorted[1].value === sorted[2].value &&
+                     sorted[3].value === sorted[4].value) ||
+                    (sorted[0].value === sorted[1].value &&
+                     sorted[2].value === sorted[3].value && sorted[3].value === sorted[4].value)) {
+                    return { type: 'fullhouse', value: Math.max(sorted[2].value, sorted[3].value), cards };
+                }
+            }
+
+            // Check for straight (5+ consecutive cards)
+            if (cards.length >= 5) {
+                const sorted = [...cards].sort((a, b) => a.value - b.value);
+                let isConsecutive = true;
+                for (let i = 1; i < sorted.length; i++) {
+                    if (sorted[i].value !== sorted[i-1].value + 1) {
+                        isConsecutive = false;
+                        break;
+                    }
+                }
+                if (isConsecutive) {
+                    // Check if same suit (straight flush - bomb)
+                    const sameSuit = sorted.every(card => card.suit === sorted[0].suit);
+                    if (sameSuit && !sorted[0].isSpecial) {
+                        return { type: 'bomb-straight', value: sorted[sorted.length - 1].value, cards };
+                    }
+                    return { type: 'straight', value: sorted[sorted.length - 1].value, cards };
+                }
+            }
+
+            // Check for consecutive pairs (stairs)
+            if (cards.length >= 4 && cards.length % 2 === 0) {
+                const sorted = [...cards].sort((a, b) => a.value - b.value);
+                let isStairs = true;
+                for (let i = 0; i < sorted.length; i += 2) {
+                    if (i + 1 >= sorted.length || sorted[i].value !== sorted[i + 1].value) {
+                        isStairs = false;
+                        break;
+                    }
+                    if (i + 2 < sorted.length && sorted[i + 1].value + 1 !== sorted[i + 2].value) {
+                        isStairs = false;
+                        break;
+                    }
+                }
+                if (isStairs) {
+                    return { type: 'stairs', value: sorted[sorted.length - 1].value, cards };
+                }
+            }
+
+            return null;
+        }
+
+        // Check if play is valid
+        function isValidPlay(newPlay, currentPlay) {
+            if (!currentPlay) return newPlay !== null;
+
+            // Bombs can be played on anything
+            if (newPlay.type.startsWith('bomb-')) {
+                if (!currentPlay.type.startsWith('bomb-')) return true;
+                // Bomb vs bomb
+                if (newPlay.type === 'bomb-straight' && currentPlay.type === 'bomb-quad') return true;
+                if (newPlay.type === currentPlay.type) return newPlay.value > currentPlay.value;
+                return false;
+            }
+
+            // Must be same type and higher value
+            if (newPlay.type !== currentPlay.type) return false;
+            if (newPlay.cards.length !== currentPlay.cards.length) return false;
+            return newPlay.value > currentPlay.value;
+        }
+
+        // Play cards
+        function playCards() {
+            if (gameState.selectedCards.length === 0) {
+                alert('카드를 선택해주세요!');
+                return;
+            }
+
+            const combination = validateCombination(gameState.selectedCards);
+            if (!combination) {
+                alert('유효하지 않은 조합입니다!');
+                return;
+            }
+
+            if (!isValidPlay(combination, gameState.currentPlay)) {
+                alert('현재 플레이보다 높은 카드를 내야 합니다!');
+                return;
+            }
+
+            // Remove cards from hand
+            const player = gameState.players[gameState.currentPlayer];
+            gameState.selectedCards.forEach(card => {
+                const index = gameState.hands[player].indexOf(card);
+                if (index > -1) gameState.hands[player].splice(index, 1);
+            });
+
+            // Update current play
+            gameState.currentPlay = combination;
+            gameState.currentPlayPlayer = gameState.currentPlayer;
+            gameState.consecutivePasses = 0;
+            gameState.selectedCards = [];
+
+            // Check if player finished
+            if (gameState.hands[player].length === 0) {
+                gameState.finishedPlayers.push(player);
+                updateGameInfo(`${getPlayerName(player)} 완료!`);
+
+                // Check for round end
+                if (gameState.finishedPlayers.length === 3) {
+                    endRound();
+                    return;
+                }
+            }
+
+            nextTurn();
+        }
+
+        // Pass turn
+        function passTurn() {
+            gameState.consecutivePasses++;
+
+            if (gameState.consecutivePasses === 3) {
+                // Current play wins, clear the table
+                gameState.currentPlay = null;
+                gameState.currentPlayType = null;
+                gameState.consecutivePasses = 0;
+                updateGameInfo('테이블이 클리어되었습니다!');
+            }
+
+            nextTurn();
+        }
+
+        // Next turn
+        function nextTurn() {
+            do {
+                gameState.currentPlayer = (gameState.currentPlayer + 1) % 4;
+            } while (gameState.finishedPlayers.includes(gameState.players[gameState.currentPlayer]));
+
+            renderGame();
+
+            // AI turn
+            if (gameState.players[gameState.currentPlayer] !== 'south') {
+                setTimeout(() => aiTurn(), 1000);
+            }
+        }
+
+        // Simple AI
+        function aiTurn() {
+            const player = gameState.players[gameState.currentPlayer];
+            const hand = gameState.hands[player];
+
+            // Simple strategy: try to play lowest valid combination
+            if (!gameState.currentPlay || Math.random() < 0.3) {
+                passTurn();
+                return;
+            }
+
+            // Try to find a valid play
+            for (let i = 0; i < hand.length; i++) {
+                const combo = validateCombination([hand[i]]);
+                if (combo && isValidPlay(combo, gameState.currentPlay)) {
+                    gameState.selectedCards = [hand[i]];
+                    playCards();
+                    return;
+                }
+            }
+
+            passTurn();
+        }
+
+        // End round
+        function endRound() {
+            gameState.roundActive = false;
+
+            // Calculate scores
+            let team1Cards = [];
+            let team2Cards = [];
+
+            // The last player's cards go to the winner
+            const lastPlayer = gameState.players.find(p => !gameState.finishedPlayers.includes(p));
+            const winner = gameState.finishedPlayers[0];
+            const winnerTeam = (gameState.players.indexOf(winner) % 2 === 0) ? 1 : 2;
+
+            if (lastPlayer) {
+                if (winnerTeam === 1) {
+                    team1Cards.push(...gameState.hands[lastPlayer]);
+                } else {
+                    team2Cards.push(...gameState.hands[lastPlayer]);
+                }
+            }
+
+            // Calculate points
+            let team1Points = team1Cards.reduce((sum, card) => sum + (card.points || 0), 0);
+            let team2Points = team2Cards.reduce((sum, card) => sum + (card.points || 0), 0);
+
+            // Check for one-two finish (200 points)
+            if (gameState.finishedPlayers.length >= 2) {
+                const first = gameState.players.indexOf(gameState.finishedPlayers[0]);
+                const second = gameState.players.indexOf(gameState.finishedPlayers[1]);
+
+                if (first % 2 === second % 2) {
+                    // Same team finished 1-2
+                    if (first % 2 === 0) {
+                        team1Points = 200;
+                        team2Points = 0;
+                    } else {
+                        team2Points = 200;
+                        team1Points = 0;
+                    }
+                }
+            }
+
+            // Apply Tichu bonuses
+            gameState.players.forEach((player, index) => {
+                const tichu = gameState.tichuCalls[player];
+                if (tichu) {
+                    const success = gameState.finishedPlayers[0] === player;
+                    const points = tichu === 'grand' ? 200 : 100;
+                    const team = index % 2 === 0 ? 'team1' : 'team2';
+
+                    if (success) {
+                        if (team === 'team1') team1Points += points;
+                        else team2Points += points;
+                    } else {
+                        if (team === 'team1') team1Points -= points;
+                        else team2Points -= points;
+                    }
+                }
+            });
+
+            gameState.totalScores.team1 += team1Points;
+            gameState.totalScores.team2 += team2Points;
+
+            updateScores();
+            updateGameInfo(`라운드 종료! 팀1: +${team1Points}, 팀2: +${team2Points}`);
+
+            // Check for game end
+            if (gameState.totalScores.team1 >= 1000 || gameState.totalScores.team2 >= 1000) {
+                const winner = gameState.totalScores.team1 > gameState.totalScores.team2 ? '팀 1' : '팀 2';
+                alert(`게임 종료! ${winner} 승리!`);
+            }
+        }
+
+        // Get player name
+        function getPlayerName(player) {
+            const names = { south: '남', west: '서', north: '북', east: '동' };
+            return names[player];
+        }
+
+        // Update scores
+        function updateScores() {
+            document.getElementById('team1-score').textContent = gameState.totalScores.team1;
+            document.getElementById('team2-score').textContent = gameState.totalScores.team2;
+        }
+
+        // Update game info
+        function updateGameInfo(message) {
+            document.getElementById('game-info').textContent = message;
+        }
+
+        // Render game
+        function renderGame() {
+            // Render all hands
+            gameState.players.forEach(player => {
+                const handEl = document.getElementById(`${player}-hand`);
+                const countEl = document.getElementById(`${player}-count`);
+                const hand = gameState.hands[player];
+
+                handEl.innerHTML = '';
+                countEl.textContent = hand.length;
+
+                if (player === 'south') {
+                    // Show player's cards
+                    hand.forEach(card => {
+                        handEl.appendChild(renderCard(card, true));
+                    });
+                } else {
+                    // Show card backs for other players
+                    for (let i = 0; i < hand.length; i++) {
+                        const cardBack = document.createElement('div');
+                        cardBack.className = 'card';
+                        cardBack.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                        cardBack.innerHTML = '<div class="card-value">🎴</div>';
+                        handEl.appendChild(cardBack);
+                    }
+                }
+
+                // Update Tichu badges
+                const tichuEl = document.getElementById(`${player}-tichu`);
+                if (gameState.tichuCalls[player]) {
+                    const type = gameState.tichuCalls[player] === 'grand' ? 'grand' : '';
+                    const text = gameState.tichuCalls[player] === 'grand' ? 'GT' : 'T';
+                    tichuEl.innerHTML = `<span class="tichu-badge ${type}">${text}</span>`;
+                } else {
+                    tichuEl.innerHTML = '';
+                }
+
+                // Highlight active player
+                const playerEl = document.getElementById(`player-${player}`);
+                if (gameState.players[gameState.currentPlayer] === player) {
+                    playerEl.classList.add('active');
+                } else {
+                    playerEl.classList.remove('active');
+                }
+            });
+
+            // Render current play
+            const playedCardsEl = document.getElementById('played-cards');
+            const combinationTypeEl = document.getElementById('combination-type');
+            playedCardsEl.innerHTML = '';
+
+            if (gameState.currentPlay) {
+                gameState.currentPlay.cards.forEach(card => {
+                    playedCardsEl.appendChild(renderCard(card));
+                });
+
+                const typeNames = {
+                    'single': '싱글',
+                    'pair': '페어',
+                    'triple': '트리플',
+                    'straight': '스트레이트',
+                    'fullhouse': '풀하우스',
+                    'stairs': '계단',
+                    'bomb-quad': '폭탄 (4장)',
+                    'bomb-straight': '폭탄 (스트레이트 플러시)'
+                };
+                combinationTypeEl.textContent = typeNames[gameState.currentPlay.type] || gameState.currentPlay.type;
+            } else {
+                combinationTypeEl.textContent = '';
+            }
+
+            // Show finished players
+            const finishedEl = document.getElementById('finished-players');
+            if (gameState.finishedPlayers.length > 0) {
+                finishedEl.innerHTML = '완료: ' + gameState.finishedPlayers.map((p, i) =>
+                    `<span class="finished-player">${i + 1}등: ${getPlayerName(p)}</span>`
+                ).join('');
+            } else {
+                finishedEl.innerHTML = '';
+            }
+
+            // Update play info
+            const currentPlayerName = getPlayerName(gameState.players[gameState.currentPlayer]);
+            document.getElementById('play-info').textContent = `${currentPlayerName}의 턴`;
+
+            // Update button states
+            const isPlayerTurn = gameState.players[gameState.currentPlayer] === 'south';
+            document.getElementById('btn-play').disabled = !isPlayerTurn || !gameState.roundActive;
+            document.getElementById('btn-pass').disabled = !isPlayerTurn || !gameState.roundActive;
+            document.getElementById('btn-tichu').disabled = gameState.tichuCalls.south !== null || !gameState.roundActive;
+            document.getElementById('btn-grand-tichu').disabled = !gameState.grandTichuPhase || gameState.tichuCalls.south !== null;
+        }
+
+        // Start new round
+        function startNewRound() {
+            gameState.currentPlayer = 0;
+            gameState.hands = { south: [], west: [], north: [], east: [] };
+            gameState.selectedCards = [];
+            gameState.currentPlay = null;
+            gameState.currentPlayType = null;
+            gameState.currentPlayPlayer = null;
+            gameState.consecutivePasses = 0;
+            gameState.finishedPlayers = [];
+            gameState.tichuCalls = { south: null, west: null, north: null, east: null };
+
+            dealCards();
+        }
+
+        // Restart game
+        function restartGame() {
+            if (confirm('게임을 처음부터 다시 시작하시겠습니까?')) {
+                gameState.totalScores = { team1: 0, team2: 0 };
+                updateScores();
+                startNewRound();
+            }
+        }
+
+        // Event listeners
+        document.getElementById('btn-play').addEventListener('click', playCards);
+        document.getElementById('btn-pass').addEventListener('click', passTurn);
+        document.getElementById('btn-new-round').addEventListener('click', startNewRound);
+        document.getElementById('btn-restart').addEventListener('click', restartGame);
+
+        document.getElementById('btn-grand-tichu').addEventListener('click', () => {
+            if (gameState.grandTichuPhase && !gameState.tichuCalls.south) {
+                gameState.tichuCalls.south = 'grand';
+                renderGame();
+                alert('그랜드 티추를 선언했습니다!');
+            }
+        });
+
+        document.getElementById('btn-tichu').addEventListener('click', () => {
+            if (!gameState.tichuCalls.south && gameState.roundActive) {
+                gameState.tichuCalls.south = 'tichu';
+                renderGame();
+                alert('티추를 선언했습니다!');
+            }
+        });
+
+        // Grand Tichu modal handlers
+        document.getElementById('modal-grand-tichu-yes').addEventListener('click', () => {
+            gameState.tichuCalls.south = 'grand';
+            document.getElementById('grand-tichu-modal').classList.remove('active');
+            completeDeal();
+        });
+
+        document.getElementById('modal-grand-tichu-no').addEventListener('click', () => {
+            document.getElementById('grand-tichu-modal').classList.remove('active');
+            completeDeal();
+        });
+
+        // Initialize game
+        startNewRound();
+    </script>
+</body>
+</html>
