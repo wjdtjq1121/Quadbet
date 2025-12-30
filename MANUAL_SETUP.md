@@ -16,11 +16,29 @@
 ```json
 {
   "rules": {
-    ".read": true,
-    ".write": true
+    "rooms": {
+      "$roomCode": {
+        ".read": true,
+        ".write": "!data.exists() || data.child('host').val() === newData.child('host').val()",
+        "players": {
+          "$playerId": {
+            ".write": true
+          }
+        },
+        "gameState": {
+          ".write": true
+        }
+      }
+    }
   }
 }
 ```
+
+**이 규칙은:**
+- ✅ 누구나 방 생성 가능
+- ✅ 방장만 방 설정 변경 가능
+- ✅ 게임 플레이 가능
+- ✅ 기본적인 보안 보호
 
 ### 4단계: 게시
 - **"게시"** 버튼 클릭
@@ -38,8 +56,20 @@
 ```json
 {
   "rules": {
-    ".read": true,
-    ".write": true
+    "rooms": {
+      "$roomCode": {
+        ".read": true,
+        ".write": "!data.exists() || data.child('host').val() === newData.child('host').val()",
+        "players": {
+          "$playerId": {
+            ".write": true
+          }
+        },
+        "gameState": {
+          ".write": true
+        }
+      }
+    }
   }
 }
 ```

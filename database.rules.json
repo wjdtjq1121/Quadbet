@@ -1,6 +1,18 @@
 {
   "rules": {
-    ".read": true,
-    ".write": true
+    "rooms": {
+      "$roomCode": {
+        ".read": true,
+        ".write": "!data.exists() || data.child('host').val() === newData.child('host').val()",
+        "players": {
+          "$playerId": {
+            ".write": true
+          }
+        },
+        "gameState": {
+          ".write": true
+        }
+      }
+    }
   }
 }
