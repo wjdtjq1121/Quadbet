@@ -1078,6 +1078,16 @@ function playCards() {
     syncGameState();
 }
 
+// Helper function to calculate required passes
+function getRequiredPasses() {
+    // Number of players still in the game
+    const activePlayers = 4 - (gameState.finishedPlayers ? gameState.finishedPlayers.length : 0);
+    // Required passes = active players - 1
+    const required = Math.max(1, activePlayers - 1);
+    console.log(`🎯 필요한 패스 수: ${required} (활성 플레이어: ${activePlayers})`);
+    return required;
+}
+
 function passTurn() {
     if (!isMyTurn()) {
         alert('당신의 차례가 아닙니다!');
@@ -1086,10 +1096,12 @@ function passTurn() {
 
     console.log('👋 패스!');
     gameState.consecutivePasses++;
-    console.log(`📊 연속 패스: ${gameState.consecutivePasses}/3`);
 
-    if (gameState.consecutivePasses === 3) {
-        console.log('🧹 테이블 클리어! (3연속 패스) - 새로운 조합을 낼 수 있습니다!');
+    const requiredPasses = getRequiredPasses();
+    console.log(`📊 연속 패스: ${gameState.consecutivePasses}/${requiredPasses}`);
+
+    if (gameState.consecutivePasses >= requiredPasses) {
+        console.log(`🧹 테이블 클리어! (${requiredPasses}연속 패스) - 새로운 조합을 낼 수 있습니다!`);
         gameState.currentPlay = null;
         gameState.consecutivePasses = 0;
     }
@@ -1208,7 +1220,7 @@ function renderGame() {
                 countEl.textContent = hand.length;
 
                 if (index === currentRoom.playerPosition) {
-                    // Show player's cards
+                    // Show player's cards (clickable)
                     hand.forEach(card => {
                         try {
                             handEl.appendChild(renderCard(card, true));
@@ -1217,14 +1229,14 @@ function renderGame() {
                         }
                     });
                 } else {
-                    // Show card backs
-                    for (let i = 0; i < hand.length; i++) {
-                        const cardBack = document.createElement('div');
-                        cardBack.className = 'card';
-                        cardBack.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-                        cardBack.innerHTML = '<div class="card-value">🎴</div>';
-                        handEl.appendChild(cardBack);
-                    }
+                    // Show other players' cards (for debugging - not clickable)
+                    hand.forEach(card => {
+                        try {
+                            handEl.appendChild(renderCard(card, false));
+                        } catch (err) {
+                            console.error('카드 렌더링 에러:', err, card);
+                        }
+                    });
                 }
 
                 // Highlight active player
@@ -1278,11 +1290,18 @@ function renderGame() {
                     'bomb-straight': '폭탄 (스트레이트 플러시)'
                 };
                 const typeName = typeNames[gameState.currentPlay.type] || gameState.currentPlay.type;
-                const passInfo = gameState.consecutivePasses > 0 ? ` (패스 ${gameState.consecutivePasses}/3)` : '';
+
+                // Calculate required passes based on active players
+                const activePlayers = 4 - (gameState.finishedPlayers ? gameState.finishedPlayers.length : 0);
+                const requiredPasses = Math.max(1, activePlayers - 1);
+                const passInfo = gameState.consecutivePasses > 0 ? ` (패스 ${gameState.consecutivePasses}/${requiredPasses})` : '';
+
                 combinationTypeEl.textContent = typeName + passInfo;
             } else {
                 // No current play - new trick
-                const passInfo = gameState.consecutivePasses > 0 ? `패스 ${gameState.consecutivePasses}/3 - ` : '';
+                const activePlayers = 4 - (gameState.finishedPlayers ? gameState.finishedPlayers.length : 0);
+                const requiredPasses = Math.max(1, activePlayers - 1);
+                const passInfo = gameState.consecutivePasses > 0 ? `패스 ${gameState.consecutivePasses}/${requiredPasses} - ` : '';
                 combinationTypeEl.textContent = passInfo + (gameState.consecutivePasses === 0 ? '새 트릭 - 아무 조합이나 가능' : '');
             }
         }
@@ -1602,10 +1621,12 @@ function passBotTurn(botPosition) {
         }
 
         gameState.consecutivePasses++;
-        console.log(`📊 연속 패스: ${gameState.consecutivePasses}/3`);
 
-        if (gameState.consecutivePasses === 3) {
-            console.log('🧹 테이블 클리어! (3연속 패스) - 새로운 조합을 낼 수 있습니다!');
+        const requiredPasses = getRequiredPasses();
+        console.log(`📊 연속 패스: ${gameState.consecutivePasses}/${requiredPasses}`);
+
+        if (gameState.consecutivePasses >= requiredPasses) {
+            console.log(`🧹 테이블 클리어! (${requiredPasses}연속 패스) - 새로운 조합을 낼 수 있습니다!`);
             gameState.currentPlay = null;
             gameState.consecutivePasses = 0;
         }
