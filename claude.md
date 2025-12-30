@@ -5,6 +5,18 @@
 
 ## 버전 히스토리
 
+### v1.3.1 (2025-12-30)
+- Firebase 에러 처리 대폭 개선
+- 5초 타임아웃 추가 (응답 없으면 자동 에러 표시)
+- 사용자 친화적인 에러 메시지
+- 에러 발생 시 setup.html로 자동 안내
+- PERMISSION_DENIED 에러 자동 감지
+
+### v1.3.0 (2025-12-30)
+- Firebase 자동 배포 스크립트 추가 (deploy.bat, deploy.sh)
+- database.rules.json 생성
+- firebase.json, .firebaserc 설정
+
 ### v1.2.0 (2025-12-30)
 - README.md 작성 (GitHub 메인 문서)
 - setup.html 설정 가이드 페이지 추가

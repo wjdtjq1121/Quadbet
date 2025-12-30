@@ -201,9 +201,18 @@ function createRoom() {
     };
 
     console.log('방 데이터:', roomData);
+    console.log('Firebase에 데이터 쓰기 시도 중...');
 
-    roomRef.set(roomData).then(() => {
-        console.log('방 생성 성공!');
+    // Add timeout to detect if Firebase is hanging
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Firebase 응답 시간 초과. 보안 규칙을 확인해주세요.')), 5000);
+    });
+
+    Promise.race([
+        roomRef.set(roomData),
+        timeoutPromise
+    ]).then(() => {
+        console.log('✅ 방 생성 성공!');
         currentRoom.code = roomCode;
         currentRoom.isHost = true;
         currentRoom.playerPosition = 0;
@@ -213,8 +222,37 @@ function createRoom() {
 
         joinWaitingRoom(roomCode);
     }).catch((error) => {
-        console.error('방 생성 에러:', error);
-        alert('방 생성 실패: ' + error.message);
+        console.error('❌ 방 생성 에러:', error);
+        console.error('에러 코드:', error.code);
+        console.error('에러 메시지:', error.message);
+
+        let errorMessage = '방 생성에 실패했습니다.\n\n';
+
+        if (error.code === 'PERMISSION_DENIED' || error.message.includes('permission') || error.message.includes('Permission')) {
+            errorMessage += '⚠️ Firebase 보안 규칙이 설정되지 않았습니다!\n\n';
+            errorMessage += '해결 방법:\n';
+            errorMessage += '1. 프로젝트 폴더에서 "deploy.bat" 실행\n';
+            errorMessage += '2. 또는 우측 하단 "❓" 버튼 클릭\n\n';
+            errorMessage += '자세한 안내를 보시겠습니까?';
+
+            if (confirm(errorMessage)) {
+                window.location.href = 'setup.html';
+            }
+        } else if (error.message.includes('시간 초과')) {
+            errorMessage += '⏱️ Firebase 연결이 느립니다.\n\n';
+            errorMessage += '가능한 원인:\n';
+            errorMessage += '- 인터넷 연결 확인\n';
+            errorMessage += '- Firebase 보안 규칙 미설정\n';
+            errorMessage += '- Firebase 서비스 상태 확인\n\n';
+            errorMessage += '설정 가이드를 보시겠습니까?';
+
+            if (confirm(errorMessage)) {
+                window.location.href = 'setup.html';
+            }
+        } else {
+            errorMessage += '에러: ' + error.message;
+            alert(errorMessage);
+        }
     });
 }
 
