@@ -1,7 +1,18 @@
 // Global error handler
 window.onerror = function(message, source, lineno, colno, error) {
-    console.error('전역 에러 발생:', message, '파일:', source, '라인:', lineno);
-    alert('에러 발생: ' + message);
+    console.error('============ 전역 에러 발생 ============');
+    console.error('메시지:', message);
+    console.error('파일:', source);
+    console.error('라인:', lineno, '컬럼:', colno);
+    console.error('에러 객체:', error);
+    if (error && error.stack) {
+        console.error('스택 트레이스:', error.stack);
+    }
+    console.error('=====================================');
+
+    // Show more detailed error message
+    const errorMsg = error ? (error.message || message) : message;
+    alert('에러 발생: ' + errorMsg + '\n\n콘솔(F12)에서 자세한 내용을 확인하세요.');
     return false;
 };
 
@@ -425,17 +436,55 @@ function toggleReady() {
 }
 
 function startGame() {
-    if (!currentRoom.isHost) return;
+    console.log('🎮 startGame 호출됨');
 
-    const roomRef = database.ref(`rooms/${currentRoom.code}`);
+    if (!currentRoom.isHost) {
+        console.log('❌ 방장이 아님');
+        return;
+    }
 
-    // Initialize game state
-    const gameState = initializeGameState();
+    console.log('🔍 검증 시작...');
 
-    roomRef.update({
-        gameStarted: true,
-        gameState: gameState
-    });
+    // Validation checks
+    if (!currentRoom.code) {
+        console.error('❌ 방 코드가 없습니다!');
+        alert('에러: 방 코드가 없습니다. 방을 다시 만들어주세요.');
+        return;
+    }
+
+    if (!database) {
+        console.error('❌ Firebase 데이터베이스가 초기화되지 않았습니다!');
+        alert('에러: Firebase 연결 실패. 페이지를 새로고침해주세요.');
+        return;
+    }
+
+    console.log('✅ 검증 통과');
+
+    try {
+        console.log('🎲 게임 상태 초기화 중...');
+        const gameState = initializeGameState();
+        console.log('✅ 게임 상태 생성 완료:', gameState);
+
+        console.log('💾 Firebase에 게임 시작 데이터 쓰기 중...');
+        const roomRef = database.ref(`rooms/${currentRoom.code}`);
+
+        roomRef.update({
+            gameStarted: true,
+            gameState: gameState
+        })
+        .then(() => {
+            console.log('✅ 게임 시작 성공!');
+        })
+        .catch((error) => {
+            console.error('❌ Firebase 업데이트 실패:', error);
+            alert('게임 시작 실패: ' + error.message);
+        });
+
+    } catch (error) {
+        console.error('❌ startGame 에러:', error);
+        console.error('에러 스택:', error.stack);
+        alert('게임 시작 중 에러 발생: ' + error.message + '\n\n콘솔(F12)에서 자세한 내용을 확인하세요.');
+    }
 }
 
 function leaveRoom() {
@@ -559,39 +608,69 @@ function shuffleDeck(deck) {
 }
 
 function initializeGameState() {
-    const deck = shuffleDeck(createDeck());
-    const hands = { 0: [], 1: [], 2: [], 3: [] };
+    try {
+        console.log('📦 덱 생성 중...');
+        const deck = createDeck();
+        console.log('✅ 덱 생성 완료:', deck.length, '장');
 
-    // Deal cards
-    for (let i = 0; i < 56; i++) {
-        const playerIndex = i % 4;
-        hands[playerIndex].push(deck[i]);
-    }
+        console.log('🔀 덱 섞는 중...');
+        const shuffledDeck = shuffleDeck(deck);
+        console.log('✅ 덱 섞기 완료');
 
-    // Sort hands
-    Object.keys(hands).forEach(playerIndex => {
-        sortHand(hands[playerIndex]);
-    });
+        console.log('🎴 카드 분배 중...');
+        const hands = { 0: [], 1: [], 2: [], 3: [] };
 
-    // Find player with Mahjong
-    let startPlayer = 0;
-    Object.entries(hands).forEach(([index, hand]) => {
-        const hasMahjong = hand.some(card => card.isSpecial && card.name === 'Mah Jong');
-        if (hasMahjong) {
-            startPlayer = parseInt(index);
+        // Deal cards
+        if (shuffledDeck.length !== 56) {
+            throw new Error(`덱 카드 수가 잘못되었습니다: ${shuffledDeck.length}장 (56장이어야 함)`);
         }
-    });
 
-    return {
-        hands: hands,
-        currentPlayer: startPlayer,
-        currentPlay: null,
-        consecutivePasses: 0,
-        finishedPlayers: [],
-        tichuCalls: { 0: null, 1: null, 2: null, 3: null },
-        totalScores: { team1: 0, team2: 0 },
-        roundActive: true
-    };
+        for (let i = 0; i < 56; i++) {
+            const playerIndex = i % 4;
+            if (!shuffledDeck[i]) {
+                throw new Error(`카드 ${i}가 존재하지 않습니다`);
+            }
+            hands[playerIndex].push(shuffledDeck[i]);
+        }
+
+        console.log('✅ 카드 분배 완료 (각 플레이어 14장)');
+
+        console.log('🔢 손패 정렬 중...');
+        // Sort hands
+        Object.keys(hands).forEach(playerIndex => {
+            sortHand(hands[playerIndex]);
+        });
+        console.log('✅ 손패 정렬 완료');
+
+        console.log('🀄 마작 찾는 중...');
+        // Find player with Mahjong
+        let startPlayer = 0;
+        Object.entries(hands).forEach(([index, hand]) => {
+            const hasMahjong = hand.some(card => card.isSpecial && card.name === 'Mah Jong');
+            if (hasMahjong) {
+                startPlayer = parseInt(index);
+                console.log(`✅ 마작 발견: 플레이어 ${index}`);
+            }
+        });
+
+        const newGameState = {
+            hands: hands,
+            currentPlayer: startPlayer,
+            currentPlay: null,
+            consecutivePasses: 0,
+            finishedPlayers: [],
+            tichuCalls: { 0: null, 1: null, 2: null, 3: null },
+            totalScores: { team1: 0, team2: 0 },
+            roundActive: true
+        };
+
+        console.log('✅ 게임 상태 초기화 완료');
+        return newGameState;
+
+    } catch (error) {
+        console.error('❌ initializeGameState 에러:', error);
+        throw new Error('게임 상태 초기화 실패: ' + error.message);
+    }
 }
 
 function sortHand(hand) {
@@ -1255,20 +1334,26 @@ function passBotTurn(botPosition) {
 
 // ==================== EVENT LISTENERS ====================
 
-document.getElementById('btn-play').addEventListener('click', playCards);
-document.getElementById('btn-pass').addEventListener('click', passTurn);
-document.getElementById('btn-tichu').addEventListener('click', declareTichu);
-document.getElementById('btn-new-round').addEventListener('click', startNewRound);
-document.getElementById('btn-leave-game').addEventListener('click', leaveGame);
+try {
+    document.getElementById('btn-play').addEventListener('click', playCards);
+    document.getElementById('btn-pass').addEventListener('click', passTurn);
+    document.getElementById('btn-tichu').addEventListener('click', declareTichu);
+    document.getElementById('btn-new-round').addEventListener('click', startNewRound);
+    document.getElementById('btn-leave-game').addEventListener('click', leaveGame);
 
-// Enter key handlers
-document.getElementById('nickname-input').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') setNickname();
-});
+    // Enter key handlers
+    document.getElementById('nickname-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') setNickname();
+    });
 
-document.getElementById('room-code-input').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') joinRoomByCode();
-});
+    document.getElementById('room-code-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') joinRoomByCode();
+    });
+
+    console.log('✅ 이벤트 리스너 등록 완료');
+} catch (error) {
+    console.error('❌ 이벤트 리스너 등록 실패:', error);
+}
 
 // Debug: Check if functions are defined
 console.log('=== app.js 로드 완료 ===');
