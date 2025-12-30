@@ -1058,125 +1058,169 @@ function endRound() {
 }
 
 function renderGame() {
-    console.log('🎨 renderGame 호출됨');
+    try {
+        console.log('🎨 renderGame 호출됨');
 
-    if (!gameState) {
-        console.log('❌ gameState가 없습니다');
-        return;
-    }
-
-    if (!gameState.hands) {
-        console.error('❌ gameState.hands가 없습니다!', gameState);
-        return;
-    }
-
-    const positions = ['south', 'west', 'north', 'east'];
-
-    positions.forEach((pos, index) => {
-        const handEl = document.getElementById(`${pos}-hand`);
-        const countEl = document.getElementById(`${pos}-count`);
-
-        // Safety check for hands
-        const hand = gameState.hands[index];
-        if (!hand || !Array.isArray(hand)) {
-            console.error(`❌ 플레이어 ${index}의 손패가 없거나 배열이 아닙니다:`, hand);
-            if (handEl) handEl.innerHTML = '';
-            if (countEl) countEl.textContent = '0';
-            return; // Skip this player
+        if (!gameState) {
+            console.log('❌ gameState가 없습니다');
+            return;
         }
 
-        handEl.innerHTML = '';
-        countEl.textContent = hand.length;
+        if (!gameState.hands) {
+            console.error('❌ gameState.hands가 없습니다!', gameState);
+            return;
+        }
 
-        if (index === currentRoom.playerPosition) {
-            // Show player's cards
-            hand.forEach(card => {
-                handEl.appendChild(renderCard(card, true));
-            });
-        } else {
-            // Show card backs
-            for (let i = 0; i < hand.length; i++) {
-                const cardBack = document.createElement('div');
-                cardBack.className = 'card';
-                cardBack.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-                cardBack.innerHTML = '<div class="card-value">🎴</div>';
-                handEl.appendChild(cardBack);
+        const positions = ['south', 'west', 'north', 'east'];
+
+        positions.forEach((pos, index) => {
+            try {
+                const handEl = document.getElementById(`${pos}-hand`);
+                const countEl = document.getElementById(`${pos}-count`);
+
+                if (!handEl || !countEl) {
+                    console.warn(`⚠️ DOM 요소 없음: ${pos}-hand 또는 ${pos}-count`);
+                    return;
+                }
+
+                // Safety check for hands
+                const hand = gameState.hands[index];
+                if (!hand || !Array.isArray(hand)) {
+                    console.error(`❌ 플레이어 ${index}의 손패가 없거나 배열이 아닙니다:`, hand);
+                    handEl.innerHTML = '';
+                    countEl.textContent = '0';
+                    return; // Skip this player
+                }
+
+                handEl.innerHTML = '';
+                countEl.textContent = hand.length;
+
+                if (index === currentRoom.playerPosition) {
+                    // Show player's cards
+                    hand.forEach(card => {
+                        try {
+                            handEl.appendChild(renderCard(card, true));
+                        } catch (err) {
+                            console.error('카드 렌더링 에러:', err, card);
+                        }
+                    });
+                } else {
+                    // Show card backs
+                    for (let i = 0; i < hand.length; i++) {
+                        const cardBack = document.createElement('div');
+                        cardBack.className = 'card';
+                        cardBack.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                        cardBack.innerHTML = '<div class="card-value">🎴</div>';
+                        handEl.appendChild(cardBack);
+                    }
+                }
+
+                // Highlight active player
+                const playerEl = document.getElementById(`player-${pos}`);
+                if (playerEl) {
+                    if (gameState.currentPlayer === index) {
+                        playerEl.classList.add('active');
+                    } else {
+                        playerEl.classList.remove('active');
+                    }
+                }
+
+                // Update Tichu badges
+                const tichuEl = document.getElementById(`${pos}-tichu`);
+                if (tichuEl && gameState.tichuCalls && gameState.tichuCalls[index]) {
+                    const type = gameState.tichuCalls[index] === 'grand' ? 'grand' : '';
+                    const text = gameState.tichuCalls[index] === 'grand' ? 'GT' : 'T';
+                    tichuEl.innerHTML = `<span class="tichu-badge ${type}">${text}</span>`;
+                } else if (tichuEl) {
+                    tichuEl.innerHTML = '';
+                }
+            } catch (err) {
+                console.error(`❌ renderGame 루프 에러 (${pos}):`, err);
             }
-        }
-
-        // Highlight active player
-        const playerEl = document.getElementById(`player-${pos}`);
-        if (playerEl) {
-            if (gameState.currentPlayer === index) {
-                playerEl.classList.add('active');
-            } else {
-                playerEl.classList.remove('active');
-            }
-        }
-
-        // Update Tichu badges
-        const tichuEl = document.getElementById(`${pos}-tichu`);
-        if (tichuEl && gameState.tichuCalls && gameState.tichuCalls[index]) {
-            const type = gameState.tichuCalls[index] === 'grand' ? 'grand' : '';
-            const text = gameState.tichuCalls[index] === 'grand' ? 'GT' : 'T';
-            tichuEl.innerHTML = `<span class="tichu-badge ${type}">${text}</span>`;
-        } else if (tichuEl) {
-            tichuEl.innerHTML = '';
-        }
-    });
-
-    // Render current play
-    const playedCardsEl = document.getElementById('played-cards');
-    const combinationTypeEl = document.getElementById('combination-type');
-    playedCardsEl.innerHTML = '';
-
-    if (gameState.currentPlay) {
-        gameState.currentPlay.cards.forEach(card => {
-            playedCardsEl.appendChild(renderCard(card));
         });
 
-        const typeNames = {
-            'single': '싱글',
-            'pair': '페어',
-            'triple': '트리플',
-            'straight': '스트레이트',
-            'fullhouse': '풀하우스',
-            'stairs': '계단',
-            'bomb-quad': '폭탄 (4장)',
-            'bomb-straight': '폭탄 (스트레이트 플러시)'
-        };
-        combinationTypeEl.textContent = typeNames[gameState.currentPlay.type] || gameState.currentPlay.type;
-    } else {
-        combinationTypeEl.textContent = '';
+        // Render current play
+        const playedCardsEl = document.getElementById('played-cards');
+        const combinationTypeEl = document.getElementById('combination-type');
+
+        if (playedCardsEl && combinationTypeEl) {
+            playedCardsEl.innerHTML = '';
+
+            if (gameState.currentPlay && gameState.currentPlay.cards) {
+                gameState.currentPlay.cards.forEach(card => {
+                    try {
+                        playedCardsEl.appendChild(renderCard(card));
+                    } catch (err) {
+                        console.error('현재 플레이 카드 렌더링 에러:', err, card);
+                    }
+                });
+
+                const typeNames = {
+                    'single': '싱글',
+                    'pair': '페어',
+                    'triple': '트리플',
+                    'straight': '스트레이트',
+                    'fullhouse': '풀하우스',
+                    'stairs': '계단',
+                    'bomb-quad': '폭탄 (4장)',
+                    'bomb-straight': '폭탄 (스트레이트 플러시)'
+                };
+                combinationTypeEl.textContent = typeNames[gameState.currentPlay.type] || gameState.currentPlay.type;
+            } else {
+                combinationTypeEl.textContent = '';
+            }
+        }
+
+        // Show finished players
+        const finishedEl = document.getElementById('finished-players');
+        const positionNames = ['남', '서', '북', '동'];
+        if (finishedEl && gameState.finishedPlayers) {
+            if (gameState.finishedPlayers.length > 0) {
+                finishedEl.innerHTML = '완료: ' + gameState.finishedPlayers.map((p, i) =>
+                    `<span class="finished-player">${i + 1}등: ${positionNames[p]}</span>`
+                ).join('');
+            } else {
+                finishedEl.innerHTML = '';
+            }
+        }
+
+        // Update scores
+        const team1ScoreEl = document.getElementById('team1-score');
+        const team2ScoreEl = document.getElementById('team2-score');
+        if (team1ScoreEl && team2ScoreEl && gameState.totalScores) {
+            team1ScoreEl.textContent = gameState.totalScores.team1 || 0;
+            team2ScoreEl.textContent = gameState.totalScores.team2 || 0;
+        }
+
+        // Update play info
+        const playInfoEl = document.getElementById('play-info');
+        if (playInfoEl && typeof gameState.currentPlayer === 'number') {
+            const currentPlayerName = positionNames[gameState.currentPlayer];
+            playInfoEl.textContent = `${currentPlayerName}의 턴`;
+        }
+
+        // Update game info
+        const gameInfoEl = document.getElementById('game-info');
+        if (gameInfoEl && typeof gameState.currentPlayer === 'number') {
+            const currentPlayerName = positionNames[gameState.currentPlayer];
+            gameInfoEl.textContent = isMyTurn() ? '당신의 차례입니다!' : `${currentPlayerName}의 차례입니다`;
+        }
+
+        // Update button states
+        const btnPlay = document.getElementById('btn-play');
+        const btnPass = document.getElementById('btn-pass');
+        const btnTichu = document.getElementById('btn-tichu');
+
+        if (btnPlay) btnPlay.disabled = !isMyTurn() || !gameState.roundActive;
+        if (btnPass) btnPass.disabled = !isMyTurn() || !gameState.roundActive;
+        if (btnTichu && gameState.tichuCalls && currentRoom.playerPosition !== null) {
+            btnTichu.disabled = gameState.tichuCalls[currentRoom.playerPosition] !== null || !gameState.roundActive;
+        }
+
+    } catch (error) {
+        console.error('❌ renderGame 전체 에러:', error);
+        console.error('에러 스택:', error.stack);
     }
-
-    // Show finished players
-    const finishedEl = document.getElementById('finished-players');
-    const positionNames = ['남', '서', '북', '동'];
-    if (gameState.finishedPlayers.length > 0) {
-        finishedEl.innerHTML = '완료: ' + gameState.finishedPlayers.map((p, i) =>
-            `<span class="finished-player">${i + 1}등: ${positionNames[p]}</span>`
-        ).join('');
-    } else {
-        finishedEl.innerHTML = '';
-    }
-
-    // Update scores
-    document.getElementById('team1-score').textContent = gameState.totalScores.team1;
-    document.getElementById('team2-score').textContent = gameState.totalScores.team2;
-
-    // Update play info
-    const currentPlayerName = positionNames[gameState.currentPlayer];
-    document.getElementById('play-info').textContent = `${currentPlayerName}의 턴`;
-
-    // Update game info
-    document.getElementById('game-info').textContent =
-        isMyTurn() ? '당신의 차례입니다!' : `${currentPlayerName}의 차례입니다`;
-
-    // Update button states
-    document.getElementById('btn-play').disabled = !isMyTurn() || !gameState.roundActive;
-    document.getElementById('btn-pass').disabled = !isMyTurn() || !gameState.roundActive;
-    document.getElementById('btn-tichu').disabled = gameState.tichuCalls[currentRoom.playerPosition] !== null || !gameState.roundActive;
 }
 
 function declareTichu() {
@@ -1286,16 +1330,27 @@ function executeBotPlay(botPosition) {
 }
 
 function findBotPlay(hand, currentPlay) {
-    // If no current play, play lowest card/combination
-    if (!currentPlay) {
-        // Just play single lowest card for simplicity
-        return { type: 'single', value: hand[0].value, cards: [hand[0]] };
-    }
+    try {
+        if (!hand || hand.length === 0) {
+            console.error('❌ findBotPlay: 손패가 없습니다');
+            return null;
+        }
 
-    // Try to find a valid play that beats current play
-    const playType = currentPlay.type;
-    const playValue = currentPlay.value;
-    const playLength = currentPlay.cards.length;
+        // If no current play, play lowest card/combination
+        if (!currentPlay) {
+            // Just play single lowest card for simplicity
+            if (hand[0] && hand[0].value !== undefined) {
+                return { type: 'single', value: hand[0].value, cards: [hand[0]] };
+            } else {
+                console.error('❌ findBotPlay: 첫 번째 카드가 유효하지 않습니다', hand[0]);
+                return null;
+            }
+        }
+
+        // Try to find a valid play that beats current play
+        const playType = currentPlay.type;
+        const playValue = currentPlay.value;
+        const playLength = currentPlay.cards ? currentPlay.cards.length : 0;
 
     // Try single cards
     if (playType === 'single' && playLength === 1) {
@@ -1326,18 +1381,38 @@ function findBotPlay(hand, currentPlay) {
         }
     }
 
-    // For more complex combinations, just pass for now
-    // TODO: Implement straight, fullhouse, stairs detection
+        // For more complex combinations, just pass for now
+        // TODO: Implement straight, fullhouse, stairs detection
 
-    return null;
+        return null;
+
+    } catch (error) {
+        console.error('❌ findBotPlay 에러:', error);
+        return null;
+    }
 }
 
 function playBotCards(botPosition, combination) {
-    console.log('🎴 playBotCards 시작 - 위치:', botPosition, '조합:', combination.type);
+    console.log('🎴 playBotCards 시작 - 위치:', botPosition, '조합:', combination ? combination.type : 'null');
 
     try {
+        if (!gameState || !gameState.hands) {
+            console.error('❌ gameState 또는 hands가 없습니다');
+            return;
+        }
+
+        if (!combination || !combination.cards || combination.cards.length === 0) {
+            console.error('❌ 유효하지 않은 combination:', combination);
+            return;
+        }
+
         // Remove cards from bot's hand
         const botHand = gameState.hands[botPosition];
+        if (!botHand || !Array.isArray(botHand)) {
+            console.error('❌ 봇의 손패가 없거나 배열이 아닙니다');
+            return;
+        }
+
         const originalLength = botHand.length;
 
         combination.cards.forEach(card => {
@@ -1363,6 +1438,7 @@ function playBotCards(botPosition, combination) {
         // Check if bot finished
         if (botHand.length === 0) {
             console.log('🏁 봇이 모든 카드를 냈습니다!');
+            if (!gameState.finishedPlayers) gameState.finishedPlayers = [];
             gameState.finishedPlayers.push(botPosition);
 
             if (gameState.finishedPlayers.length === 3) {
@@ -1377,7 +1453,13 @@ function playBotCards(botPosition, combination) {
         syncGameState();
     } catch (error) {
         console.error('❌ playBotCards 에러:', error);
-        throw error;
+        console.error('스택:', error.stack);
+        // Don't throw, just log and try to continue
+        try {
+            passBotTurn(botPosition);
+        } catch (e) {
+            console.error('❌ 패스 처리도 실패:', e);
+        }
     }
 }
 
@@ -1385,6 +1467,15 @@ function passBotTurn(botPosition) {
     console.log('⏭️ passBotTurn - 위치:', botPosition);
 
     try {
+        if (!gameState) {
+            console.error('❌ gameState가 없습니다');
+            return;
+        }
+
+        if (gameState.consecutivePasses === undefined) {
+            gameState.consecutivePasses = 0;
+        }
+
         gameState.consecutivePasses++;
         console.log('📊 연속 패스:', gameState.consecutivePasses);
 
@@ -1398,7 +1489,8 @@ function passBotTurn(botPosition) {
         syncGameState();
     } catch (error) {
         console.error('❌ passBotTurn 에러:', error);
-        throw error;
+        console.error('스택:', error.stack);
+        // Don't throw, just log
     }
 }
 

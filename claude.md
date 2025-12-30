@@ -5,6 +5,18 @@
 
 ## 버전 히스토리
 
+### v1.4.4 (2025-12-30)
+- **완전한 방어 코드 구현**: 모든 에러 가능성 제거
+- renderGame() 완전 try-catch 포장 + 각 루프별 에러 격리
+- 모든 DOM 요소 null 체크 추가
+- findBotPlay() 완전 검증 (null 손패, 유효하지 않은 카드)
+- playBotCards() 강화 (gameState, hands, combination 검증)
+- passBotTurn() 안전 처리 (consecutivePasses 초기화)
+- 봇 에러 시 자동 패스 처리 (게임 중단 방지)
+- 카드 렌더링 개별 try-catch
+- 버튼 상태 업데이트 안전 처리
+- **목표**: 어떤 상황에서도 게임이 멈추지 않도록
+
 ### v1.4.3 (2025-12-30)
 - **핵심 버그 수정**: renderGame() undefined 에러 완전 해결
 - Firebase 직렬화 문제 해결 (배열 ↔ 객체 변환)
