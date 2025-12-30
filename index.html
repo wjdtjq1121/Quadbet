@@ -665,7 +665,7 @@
     </style>
 </head>
 <body>
-    <div class="version-badge">v1.7.2</div>
+    <div class="version-badge">v1.7.3</div>
 
     <div class="container">
         <!-- Main Menu Screen -->
@@ -955,7 +955,6 @@
                 <button class="btn btn-warning" id="btn-grand-tichu">그랜드 티추 선언</button>
                 <button class="btn btn-warning" id="btn-tichu">티추 선언</button>
                 <button class="btn btn-primary" id="btn-play">카드 내기</button>
-                <button class="btn btn-danger" id="btn-bomb" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); border: none; font-weight: bold;">💣 폭탄</button>
                 <button class="btn btn-secondary" id="btn-pass">패스</button>
                 <button class="btn btn-success" id="btn-new-round">새 라운드</button>
                 <button class="btn btn-danger" id="btn-leave-game">게임 나가기</button>
@@ -973,6 +972,31 @@
                 <button class="btn btn-warning" id="modal-grand-tichu-yes">선언</button>
                 <button class="btn btn-secondary" id="modal-grand-tichu-no">패스</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Wish Selection Modal -->
+    <div class="modal" id="wish-modal">
+        <div class="modal-content">
+            <h2>✨ 소원 선택</h2>
+            <p>소원 카드(1)를 냈습니다! 원하는 카드를 선택하세요.</p>
+            <p style="color: #3498db; margin-top: 10px;">다른 플레이어는 선택한 카드를 반드시 내야 합니다.</p>
+            <div class="wish-buttons" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0;">
+                <button class="btn btn-primary wish-btn" data-value="2">2</button>
+                <button class="btn btn-primary wish-btn" data-value="3">3</button>
+                <button class="btn btn-primary wish-btn" data-value="4">4</button>
+                <button class="btn btn-primary wish-btn" data-value="5">5</button>
+                <button class="btn btn-primary wish-btn" data-value="6">6</button>
+                <button class="btn btn-primary wish-btn" data-value="7">7</button>
+                <button class="btn btn-primary wish-btn" data-value="8">8</button>
+                <button class="btn btn-primary wish-btn" data-value="9">9</button>
+                <button class="btn btn-primary wish-btn" data-value="10">10</button>
+                <button class="btn btn-primary wish-btn" data-value="11">J</button>
+                <button class="btn btn-primary wish-btn" data-value="12">Q</button>
+                <button class="btn btn-primary wish-btn" data-value="13">K</button>
+                <button class="btn btn-primary wish-btn" data-value="14">A</button>
+            </div>
+            <button class="btn btn-secondary" id="wish-no-btn" style="width: 100%;">소원 없이 진행</button>
         </div>
     </div>
 

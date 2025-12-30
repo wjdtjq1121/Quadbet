@@ -856,7 +856,8 @@ function renderCard(card, clickable = false) {
     const cardEl = document.createElement('div');
     const { display, suit, color, cardName } = getCardDisplay(card);
 
-    cardEl.className = `card ${color}`;
+    // Set card class - use 'special' for special cards, otherwise use color
+    cardEl.className = `card ${color || 'special'}`;
 
     // Check if it's the Agni card (magician image)
     let displayHTML;
@@ -866,10 +867,23 @@ function renderCard(card, clickable = false) {
         displayHTML = display;
     }
 
-    cardEl.innerHTML = `
-        <div class="card-value">${displayHTML}</div>
-        ${suit ? `<div class="card-suit">${suit}</div>` : ''}
-    `;
+    // Special styling for Joker card (make it bigger)
+    if (display === '🃏') {
+        cardEl.innerHTML = `
+            <div class="card-value" style="font-size: 4em; margin-top: 10px;">${displayHTML}</div>
+        `;
+    } else if (display === '1') {
+        // Special styling for Wish card (숫자 1) - make it visible
+        cardEl.innerHTML = `
+            <div class="card-value" style="font-size: 2.5em; font-weight: bold;">${displayHTML}</div>
+            <div class="card-suit" style="font-size: 0.8em;">소원</div>
+        `;
+    } else {
+        cardEl.innerHTML = `
+            <div class="card-value">${displayHTML}</div>
+            ${suit && suit !== 'special' ? `<div class="card-suit">${suit}</div>` : ''}
+        `;
+    }
 
     if (clickable) {
         cardEl.onclick = () => toggleCardSelection(card, cardEl);
@@ -1051,7 +1065,7 @@ function isBomb(combination) {
     return combination.type === 'bomb-quad' || combination.type === 'bomb-straight';
 }
 
-function playBomb() {
+async function playCards() {
     if (selectedCards.length === 0) {
         alert('카드를 선택해주세요!');
         return;
@@ -1063,140 +1077,57 @@ function playBomb() {
         return;
     }
 
-    // Check if it's a bomb
-    if (!isBomb(combination)) {
-        alert('폭탄이 아닙니다! 폭탄은 4장의 동일한 숫자 또는 5장 이상의 같은 무늬 연속 카드입니다.');
-        return;
-    }
+    // Check if it's a bomb - bombs can be played anytime!
+    const isBombPlay = isBomb(combination);
 
-    console.log('💣 폭탄 사용! 턴을 가져옵니다.');
+    if (isBombPlay) {
+        console.log('💣 폭탄 감지! 언제든지 낼 수 있습니다.');
 
-    // Check if it can beat the current bomb (if any)
-    if (gameState.currentPlay && isBomb(gameState.currentPlay)) {
-        if (!isValidPlay(combination, gameState.currentPlay)) {
-            alert('현재 폭탄보다 더 강한 폭탄을 내야 합니다!');
+        // Check if it can beat the current bomb (if any)
+        if (gameState.currentPlay && isBomb(gameState.currentPlay)) {
+            if (!isValidPlay(combination, gameState.currentPlay)) {
+                alert('현재 폭탄보다 더 강한 폭탄을 내야 합니다!');
+                return;
+            }
+        }
+    } else {
+        // Not a bomb - normal turn checking
+        if (!isMyTurn()) {
+            alert('당신의 차례가 아닙니다! (폭탄만 언제든지 낼 수 있습니다)');
             return;
         }
-    }
 
-    // Check if Wish card (숫자 1) is played - ask for wish
-    if (containsMahJong(selectedCards)) {
-        console.log('🎴 소원(숫자 1) 카드 발견! 소원을 빌 수 있습니다.');
+        console.log('🎴 카드 내기 시도:', combination.type, '현재 플레이:', gameState.currentPlay ? gameState.currentPlay.type : 'null (새 트릭)');
 
-        let wishValue = null;
-        while (true) {
-            const input = prompt('소원을 빌어주세요! (2~14 사이의 숫자)\n2~10: 숫자, 11: J, 12: Q, 13: K, 14: A\n\n입력하지 않으면 소원 없이 진행됩니다.');
+        // Check if there's an active wish that must be fulfilled
+        if (gameState.wish) {
+            const myHand = gameState.hands[currentRoom.playerPosition];
+            const hasWish = hasWishCard(myHand, gameState.wish);
+            const containsWish = combinationContainsWish(combination, gameState.wish);
 
-            if (input === null || input === '') {
-                console.log('❌ 소원을 빌지 않았습니다.');
-                break;
-            }
-
-            const parsed = parseInt(input);
-            if (parsed >= 2 && parsed <= 14) {
-                wishValue = parsed;
+            if (hasWish && !containsWish) {
                 const valueNames = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
-                const wishName = valueNames[wishValue] || wishValue;
-                console.log(`✨ 소원: ${wishName}`);
-                break;
-            } else {
-                alert('2~14 사이의 숫자를 입력해주세요!');
+                const wishName = valueNames[gameState.wish] || gameState.wish;
+                alert(`소원 카드(${wishName})가 손에 있으면 반드시 포함시켜야 합니다!`);
+                return;
+            }
+
+            if (containsWish) {
+                console.log('✅ 소원 카드 포함됨! 소원이 성취되었습니다.');
             }
         }
 
-        if (wishValue) {
-            gameState.wish = wishValue;
-            console.log(`🌟 소원이 설정되었습니다: ${wishValue}`);
-        }
-    }
-
-    // Remove cards from hand
-    const myHand = gameState.hands[currentRoom.playerPosition];
-    selectedCards.forEach(card => {
-        const index = myHand.findIndex(c => JSON.stringify(c) === JSON.stringify(card));
-        if (index > -1) myHand.splice(index, 1);
-    });
-
-    // Mark that this player has played a card
-    gameState.cardsPlayed[currentRoom.playerPosition] = true;
-
-    // Update game state
-    gameState.currentPlay = combination;
-    gameState.consecutivePasses = 0;
-    gameState.currentPlayer = currentRoom.playerPosition; // Take the turn!
-    console.log(`🔄 폭탄으로 턴 획득! 현재 플레이어: ${currentRoom.playerPosition}`);
-
-    // Clear wish if it was fulfilled
-    if (gameState.wish && combinationContainsWish(combination, gameState.wish)) {
-        console.log('✅ 소원이 성취되었습니다! 소원 클리어.');
-        gameState.wish = null;
-    }
-
-    selectedCards = [];
-
-    // Check if player finished
-    if (myHand.length === 0) {
-        console.log('🏁 플레이어가 모든 카드를 냈습니다!');
-        gameState.finishedPlayers.push(currentRoom.playerPosition);
-
-        if (gameState.finishedPlayers.length === 3) {
-            console.log('🎊 라운드 종료! (3명 완료)');
-            endRound();
-            syncGameState();
-            return;
-        }
-    }
-
-    syncGameState();
-}
-
-function playCards() {
-    if (!isMyTurn()) {
-        alert('당신의 차례가 아닙니다!');
-        return;
-    }
-
-    if (selectedCards.length === 0) {
-        alert('카드를 선택해주세요!');
-        return;
-    }
-
-    const combination = validateCombination(selectedCards);
-    if (!combination) {
-        alert('유효하지 않은 조합입니다!');
-        return;
-    }
-
-    console.log('🎴 카드 내기 시도:', combination.type, '현재 플레이:', gameState.currentPlay ? gameState.currentPlay.type : 'null (새 트릭)');
-
-    // Check if there's an active wish that must be fulfilled
-    if (gameState.wish) {
-        const myHand = gameState.hands[currentRoom.playerPosition];
-        const hasWish = hasWishCard(myHand, gameState.wish);
-        const containsWish = combinationContainsWish(combination, gameState.wish);
-
-        if (hasWish && !containsWish) {
-            const valueNames = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
-            const wishName = valueNames[gameState.wish] || gameState.wish;
-            alert(`소원 카드(${wishName})가 손에 있으면 반드시 포함시켜야 합니다!`);
+        if (!isValidPlay(combination, gameState.currentPlay)) {
+            if (gameState.currentPlay) {
+                alert(`현재 플레이(${gameState.currentPlay.type})보다 높은 카드를 내야 합니다!`);
+            } else {
+                alert('유효하지 않은 플레이입니다!');
+            }
             return;
         }
 
-        if (containsWish) {
-            console.log('✅ 소원 카드 포함됨! 소원이 성취되었습니다.');
-        }
+        console.log('✅ 유효한 플레이!');
     }
-
-    if (!isValidPlay(combination, gameState.currentPlay)) {
-        if (gameState.currentPlay) {
-            alert(`현재 플레이(${gameState.currentPlay.type})보다 높은 카드를 내야 합니다!`);
-        } else {
-            alert('유효하지 않은 플레이입니다!');
-        }
-        return;
-    }
-
-    console.log('✅ 유효한 플레이!');
 
     // Check if it's a Cat (Dog) card
     const isCat = selectedCards.length === 1 && selectedCards[0].isSpecial &&
@@ -1258,31 +1189,15 @@ function playCards() {
     if (containsMahJong(selectedCards)) {
         console.log('🎴 소원(숫자 1) 카드 발견! 소원을 빌 수 있습니다.');
 
-        let wishValue = null;
-        while (true) {
-            const input = prompt('소원을 빌어주세요! (2~14 사이의 숫자)\n2~10: 숫자, 11: J, 12: Q, 13: K, 14: A\n\n입력하지 않으면 소원 없이 진행됩니다.');
-
-            if (input === null || input === '') {
-                // User cancelled or left empty - no wish
-                console.log('❌ 소원을 빌지 않았습니다.');
-                break;
-            }
-
-            const parsed = parseInt(input);
-            if (parsed >= 2 && parsed <= 14) {
-                wishValue = parsed;
-                const valueNames = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
-                const wishName = valueNames[wishValue] || wishValue;
-                console.log(`✨ 소원: ${wishName}`);
-                break;
-            } else {
-                alert('2~14 사이의 숫자를 입력해주세요!');
-            }
-        }
+        const wishValue = await showWishModal();
 
         if (wishValue) {
             gameState.wish = wishValue;
-            console.log(`🌟 소원이 설정되었습니다: ${wishValue}`);
+            const valueNames = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+            const wishName = valueNames[wishValue] || wishValue;
+            console.log(`🌟 소원이 설정되었습니다: ${wishName}`);
+        } else {
+            console.log('❌ 소원을 빌지 않았습니다.');
         }
     }
 
@@ -1301,6 +1216,12 @@ function playCards() {
     gameState.consecutivePasses = 0;
     console.log('🔄 연속 패스 카운터 리셋: 0');
 
+    // If bomb, take the turn!
+    if (isBombPlay) {
+        gameState.currentPlayer = currentRoom.playerPosition;
+        console.log(`💣 폭탄으로 턴 획득! 현재 플레이어: ${currentRoom.playerPosition}`);
+    }
+
     // Clear wish if it was fulfilled
     if (gameState.wish && combinationContainsWish(combination, gameState.wish)) {
         console.log('✅ 소원이 성취되었습니다! 소원 클리어.');
@@ -1314,16 +1235,44 @@ function playCards() {
         console.log('🏁 플레이어가 모든 카드를 냈습니다!');
         gameState.finishedPlayers.push(currentRoom.playerPosition);
 
-        if (gameState.finishedPlayers.length === 3) {
-            console.log('🎊 라운드 종료! (3명 완료)');
+        // Check if a team has both players finished
+        if (checkTeamFinished()) {
+            console.log('🎊 라운드 종료! (한 팀 완료)');
             endRound();
             syncGameState();
             return;
         }
     }
 
-    nextTurn();
+    // For bombs, we already set the turn above, so just sync
+    // For normal plays, move to next turn
+    if (!isBombPlay) {
+        nextTurn();
+    }
     syncGameState();
+}
+
+// Helper function to check if a team has both players finished
+function checkTeamFinished() {
+    const finished = gameState.finishedPlayers || [];
+
+    // Team 1: players 0 and 2 (남북)
+    const team1Finished = finished.includes(0) && finished.includes(2);
+
+    // Team 2: players 1 and 3 (동서)
+    const team2Finished = finished.includes(1) && finished.includes(3);
+
+    if (team1Finished) {
+        console.log('🏆 팀 1 (남북) 완료! 게임 즉시 종료');
+        return true;
+    }
+
+    if (team2Finished) {
+        console.log('🏆 팀 2 (동서) 완료! 게임 즉시 종료');
+        return true;
+    }
+
+    return false;
 }
 
 // Helper function to calculate required passes
@@ -2035,8 +1984,9 @@ function playBotCards(botPosition, combination) {
             if (!gameState.finishedPlayers) gameState.finishedPlayers = [];
             gameState.finishedPlayers.push(botPosition);
 
-            if (gameState.finishedPlayers.length === 3) {
-                console.log('🎊 라운드 종료! (3명 완료)');
+            // Check if a team has both players finished
+            if (checkTeamFinished()) {
+                console.log('🎊 라운드 종료! (한 팀 완료)');
                 endRound();
                 syncGameState();
                 return;
@@ -2092,11 +2042,46 @@ function passBotTurn(botPosition) {
     }
 }
 
+// ==================== WISH SELECTION MODAL ====================
+
+function showWishModal() {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('wish-modal');
+        modal.style.display = 'flex';
+
+        const wishButtons = document.querySelectorAll('.wish-btn');
+        const noWishBtn = document.getElementById('wish-no-btn');
+
+        const handleWishSelect = (value) => {
+            modal.style.display = 'none';
+            // Remove event listeners
+            wishButtons.forEach(btn => btn.replaceWith(btn.cloneNode(true)));
+            noWishBtn.replaceWith(noWishBtn.cloneNode(true));
+            resolve(value);
+        };
+
+        // Re-attach event listeners (after cloning to avoid duplicates)
+        setTimeout(() => {
+            document.querySelectorAll('.wish-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const value = parseInt(btn.getAttribute('data-value'));
+                    console.log(`✨ 소원 선택: ${value}`);
+                    handleWishSelect(value);
+                });
+            });
+
+            document.getElementById('wish-no-btn').addEventListener('click', () => {
+                console.log('❌ 소원 없이 진행');
+                handleWishSelect(null);
+            });
+        }, 0);
+    });
+}
+
 // ==================== EVENT LISTENERS ====================
 
 try {
     document.getElementById('btn-play').addEventListener('click', playCards);
-    document.getElementById('btn-bomb').addEventListener('click', playBomb);
     document.getElementById('btn-pass').addEventListener('click', passTurn);
     document.getElementById('btn-tichu').addEventListener('click', declareTichu);
     document.getElementById('btn-new-round').addEventListener('click', startNewRound);
