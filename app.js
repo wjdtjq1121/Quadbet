@@ -661,7 +661,8 @@ function initializeGameState() {
             finishedPlayers: [],
             tichuCalls: { 0: null, 1: null, 2: null, 3: null },
             totalScores: { team1: 0, team2: 0 },
-            roundActive: true
+            roundActive: true,
+            wish: null // Mah Jong wish (숫자 1 소원)
         };
 
         console.log('✅ 게임 상태 초기화 완료');
@@ -962,6 +963,45 @@ function isValidPlay(newPlay, currentPlay) {
     return newPlay.value > currentPlay.value;
 }
 
+// Helper: Check if cards contain Mah Jong (숫자 1)
+function containsMahJong(cards) {
+    return cards.some(card =>
+        card.isSpecial && (card.name === 'One' || card.name === 'Mah Jong')
+    );
+}
+
+// Helper: Check if hand has the wished card (or Joker)
+function hasWishCard(hand, wish) {
+    if (!wish) return false;
+
+    // Check for the wished value
+    const hasValue = hand.some(card => !card.isSpecial && card.value === wish);
+
+    // Check for Joker (can substitute any card)
+    const hasJoker = hand.some(card =>
+        card.isSpecial && (card.name === 'Joker' || card.name === 'Phoenix')
+    );
+
+    return hasValue || hasJoker;
+}
+
+// Helper: Check if combination contains the wished card (or Joker)
+function combinationContainsWish(combination, wish) {
+    if (!wish || !combination || !combination.cards) return false;
+
+    // Check if any card in the combination matches the wish value
+    const hasWishValue = combination.cards.some(card =>
+        !card.isSpecial && card.value === wish
+    );
+
+    // Check if Joker is used (can substitute the wish)
+    const hasJoker = combination.cards.some(card =>
+        card.isSpecial && (card.name === 'Joker' || card.name === 'Phoenix')
+    );
+
+    return hasWishValue || hasJoker;
+}
+
 function playCards() {
     if (!isMyTurn()) {
         alert('당신의 차례가 아닙니다!');
@@ -980,6 +1020,24 @@ function playCards() {
     }
 
     console.log('🎴 카드 내기 시도:', combination.type, '현재 플레이:', gameState.currentPlay ? gameState.currentPlay.type : 'null (새 트릭)');
+
+    // Check if there's an active wish that must be fulfilled
+    if (gameState.wish) {
+        const myHand = gameState.hands[currentRoom.playerPosition];
+        const hasWish = hasWishCard(myHand, gameState.wish);
+        const containsWish = combinationContainsWish(combination, gameState.wish);
+
+        if (hasWish && !containsWish) {
+            const valueNames = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+            const wishName = valueNames[gameState.wish] || gameState.wish;
+            alert(`소원 카드(${wishName})가 손에 있으면 반드시 포함시켜야 합니다!`);
+            return;
+        }
+
+        if (containsWish) {
+            console.log('✅ 소원 카드 포함됨! 소원이 성취되었습니다.');
+        }
+    }
 
     if (!isValidPlay(combination, gameState.currentPlay)) {
         if (gameState.currentPlay) {
@@ -1048,6 +1106,38 @@ function playCards() {
     }
 
     // Normal card play
+    // Check if Mah Jong (숫자 1) is played - ask for wish
+    if (containsMahJong(selectedCards)) {
+        console.log('🀄 숫자 1(마작) 카드 발견! 소원을 빌 수 있습니다.');
+
+        let wishValue = null;
+        while (true) {
+            const input = prompt('소원을 빌어주세요! (2~14 사이의 숫자)\n2~10: 숫자, 11: J, 12: Q, 13: K, 14: A\n\n입력하지 않으면 소원 없이 진행됩니다.');
+
+            if (input === null || input === '') {
+                // User cancelled or left empty - no wish
+                console.log('❌ 소원을 빌지 않았습니다.');
+                break;
+            }
+
+            const parsed = parseInt(input);
+            if (parsed >= 2 && parsed <= 14) {
+                wishValue = parsed;
+                const valueNames = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+                const wishName = valueNames[wishValue] || wishValue;
+                console.log(`✨ 소원: ${wishName}`);
+                break;
+            } else {
+                alert('2~14 사이의 숫자를 입력해주세요!');
+            }
+        }
+
+        if (wishValue) {
+            gameState.wish = wishValue;
+            console.log(`🌟 소원이 설정되었습니다: ${wishValue}`);
+        }
+    }
+
     // Remove cards from hand
     const myHand = gameState.hands[currentRoom.playerPosition];
     selectedCards.forEach(card => {
@@ -1059,6 +1149,13 @@ function playCards() {
     gameState.currentPlay = combination;
     gameState.consecutivePasses = 0;
     console.log('🔄 연속 패스 카운터 리셋: 0');
+
+    // Clear wish if it was fulfilled
+    if (gameState.wish && combinationContainsWish(combination, gameState.wish)) {
+        console.log('✅ 소원이 성취되었습니다! 소원 클리어.');
+        gameState.wish = null;
+    }
+
     selectedCards = [];
 
     // Check if player finished
@@ -1104,6 +1201,8 @@ function passTurn() {
         console.log(`🧹 테이블 클리어! (${requiredPasses}연속 패스) - 새로운 조합을 낼 수 있습니다!`);
         gameState.currentPlay = null;
         gameState.consecutivePasses = 0;
+        gameState.wish = null; // Clear wish when table is cleared
+        console.log('✨ 소원도 클리어되었습니다.');
     }
 
     nextTurn();
@@ -1296,13 +1395,22 @@ function renderGame() {
                 const requiredPasses = Math.max(1, activePlayers - 1);
                 const passInfo = gameState.consecutivePasses > 0 ? ` (패스 ${gameState.consecutivePasses}/${requiredPasses})` : '';
 
-                combinationTypeEl.textContent = typeName + passInfo;
+                // Add wish info if active
+                const valueNames = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+                const wishInfo = gameState.wish ? ` ✨소원: ${valueNames[gameState.wish] || gameState.wish}` : '';
+
+                combinationTypeEl.textContent = typeName + passInfo + wishInfo;
             } else {
                 // No current play - new trick
                 const activePlayers = 4 - (gameState.finishedPlayers ? gameState.finishedPlayers.length : 0);
                 const requiredPasses = Math.max(1, activePlayers - 1);
                 const passInfo = gameState.consecutivePasses > 0 ? `패스 ${gameState.consecutivePasses}/${requiredPasses} - ` : '';
-                combinationTypeEl.textContent = passInfo + (gameState.consecutivePasses === 0 ? '새 트릭 - 아무 조합이나 가능' : '');
+
+                // Add wish info if active
+                const valueNames = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+                const wishInfo = gameState.wish ? ` ✨소원: ${valueNames[gameState.wish] || gameState.wish}` : '';
+
+                combinationTypeEl.textContent = passInfo + (gameState.consecutivePasses === 0 ? '새 트릭 - 아무 조합이나 가능' : '') + wishInfo;
             }
         }
 
@@ -1482,6 +1590,23 @@ function findBotPlay(hand, currentPlay) {
 
         // If no current play, play lowest card/combination
         if (!currentPlay) {
+            // Check if we must fulfill a wish
+            if (gameState.wish && hasWishCard(hand, gameState.wish)) {
+                console.log('🤖 봇: 소원 카드를 우선적으로 냅니다');
+                // Try to play the wish card
+                for (let card of hand) {
+                    if (!card.isSpecial && card.value === gameState.wish) {
+                        return { type: 'single', value: card.value, cards: [card] };
+                    }
+                }
+                // If not found, try Joker
+                for (let card of hand) {
+                    if (card.isSpecial && (card.name === 'Joker' || card.name === 'Phoenix')) {
+                        return { type: 'single', value: card.value, cards: [card] };
+                    }
+                }
+            }
+
             // Just play single lowest card for simplicity
             if (hand[0] && hand[0].value !== undefined) {
                 return { type: 'single', value: hand[0].value, cards: [hand[0]] };
@@ -1496,34 +1621,65 @@ function findBotPlay(hand, currentPlay) {
         const playValue = currentPlay.value;
         const playLength = currentPlay.cards ? currentPlay.cards.length : 0;
 
-    // Try single cards
-    if (playType === 'single' && playLength === 1) {
-        for (let card of hand) {
-            if (card.value > playValue) {
-                return { type: 'single', value: card.value, cards: [card] };
-            }
-        }
-    }
+        // Check if we must fulfill a wish
+        const mustFulfillWish = gameState.wish && hasWishCard(hand, gameState.wish);
 
-    // Try pairs
-    if (playType === 'pair' && playLength === 2) {
-        for (let i = 0; i < hand.length - 1; i++) {
-            if (hand[i].value === hand[i + 1].value && hand[i].value > playValue) {
-                return { type: 'pair', value: hand[i].value, cards: [hand[i], hand[i + 1]] };
+        // Try single cards
+        if (playType === 'single' && playLength === 1) {
+            // If wish is active, try wish card first
+            if (mustFulfillWish) {
+                for (let card of hand) {
+                    if (!card.isSpecial && card.value === gameState.wish && card.value > playValue) {
+                        console.log('🤖 봇: 소원 카드로 플레이');
+                        return { type: 'single', value: card.value, cards: [card] };
+                    }
+                }
+                // Try Joker
+                for (let card of hand) {
+                    if (card.isSpecial && (card.name === 'Joker' || card.name === 'Phoenix') && card.value > playValue) {
+                        console.log('🤖 봇: 조커로 소원 성취');
+                        return { type: 'single', value: card.value, cards: [card] };
+                    }
+                }
             }
-        }
-    }
 
-    // Try triples
-    if (playType === 'triple' && playLength === 3) {
-        for (let i = 0; i < hand.length - 2; i++) {
-            if (hand[i].value === hand[i + 1].value &&
-                hand[i + 1].value === hand[i + 2].value &&
-                hand[i].value > playValue) {
-                return { type: 'triple', value: hand[i].value, cards: [hand[i], hand[i + 1], hand[i + 2]] };
+            // Normal play
+            for (let card of hand) {
+                if (card.value > playValue) {
+                    return { type: 'single', value: card.value, cards: [card] };
+                }
             }
         }
-    }
+
+        // Try pairs
+        if (playType === 'pair' && playLength === 2) {
+            for (let i = 0; i < hand.length - 1; i++) {
+                if (hand[i].value === hand[i + 1].value && hand[i].value > playValue) {
+                    // Check if wish is fulfilled
+                    const combination = { type: 'pair', value: hand[i].value, cards: [hand[i], hand[i + 1]] };
+                    if (mustFulfillWish && !combinationContainsWish(combination, gameState.wish)) {
+                        continue; // Skip this if wish not fulfilled
+                    }
+                    return combination;
+                }
+            }
+        }
+
+        // Try triples
+        if (playType === 'triple' && playLength === 3) {
+            for (let i = 0; i < hand.length - 2; i++) {
+                if (hand[i].value === hand[i + 1].value &&
+                    hand[i + 1].value === hand[i + 2].value &&
+                    hand[i].value > playValue) {
+                    // Check if wish is fulfilled
+                    const combination = { type: 'triple', value: hand[i].value, cards: [hand[i], hand[i + 1], hand[i + 2]] };
+                    if (mustFulfillWish && !combinationContainsWish(combination, gameState.wish)) {
+                        continue; // Skip this if wish not fulfilled
+                    }
+                    return combination;
+                }
+            }
+        }
 
         // For more complex combinations, just pass for now
         // TODO: Implement straight, fullhouse, stairs detection
@@ -1548,6 +1704,17 @@ function playBotCards(botPosition, combination) {
         if (!combination || !combination.cards || combination.cards.length === 0) {
             console.error('❌ 유효하지 않은 combination:', combination);
             return;
+        }
+
+        // Check if bot is playing Mah Jong (숫자 1) - make a wish
+        if (containsMahJong(combination.cards)) {
+            console.log('🤖 봇이 숫자 1(마작)을 냈습니다! 소원을 빕니다.');
+            // Bot makes a random wish (2-14)
+            const wishValue = Math.floor(Math.random() * 13) + 2; // 2~14
+            gameState.wish = wishValue;
+            const valueNames = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+            const wishName = valueNames[wishValue] || wishValue;
+            console.log(`🌟 봇의 소원: ${wishName}`);
         }
 
         // Remove cards from bot's hand
@@ -1578,6 +1745,12 @@ function playBotCards(botPosition, combination) {
         // Update game state
         gameState.currentPlay = combination;
         gameState.consecutivePasses = 0;
+
+        // Clear wish if it was fulfilled
+        if (gameState.wish && combinationContainsWish(combination, gameState.wish)) {
+            console.log('✅ 봇이 소원을 성취했습니다! 소원 클리어.');
+            gameState.wish = null;
+        }
 
         // Check if bot finished
         if (botHand.length === 0) {
@@ -1629,6 +1802,8 @@ function passBotTurn(botPosition) {
             console.log(`🧹 테이블 클리어! (${requiredPasses}연속 패스) - 새로운 조합을 낼 수 있습니다!`);
             gameState.currentPlay = null;
             gameState.consecutivePasses = 0;
+            gameState.wish = null; // Clear wish when table is cleared
+            console.log('✨ 소원도 클리어되었습니다.');
         }
 
         nextTurn();
