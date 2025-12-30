@@ -5,6 +5,15 @@
 
 ## 버전 히스토리
 
+### v1.4.3 (2025-12-30)
+- **핵심 버그 수정**: renderGame() undefined 에러 완전 해결
+- Firebase 직렬화 문제 해결 (배열 ↔ 객체 변환)
+- normalizeGameState() 함수 추가 (hands, tichuCalls 정규화)
+- renderGame()에 완전한 null 안전 검사 추가
+- 모든 플레이어 손패 검증 및 초기화
+- DOM 요소 존재 확인 후 접근
+- 게임 진행 안정성 대폭 향상
+
 ### v1.4.2 (2025-12-30)
 - 게임 시작 에러 처리 대폭 강화
 - "Script error." 문제 해결

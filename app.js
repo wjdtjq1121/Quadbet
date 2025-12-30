@@ -683,11 +683,61 @@ function sortHand(hand) {
     });
 }
 
+function normalizeGameState(state) {
+    // Firebase may convert numeric-keyed objects to arrays
+    // Convert hands back to object format if needed
+    if (Array.isArray(state.hands)) {
+        console.log('⚠️ hands가 배열로 변환되었습니다. 객체로 변환 중...');
+        const handsObj = {};
+        state.hands.forEach((hand, index) => {
+            handsObj[index] = hand || [];
+        });
+        state.hands = handsObj;
+    }
+
+    // Ensure all 4 players have hands
+    if (!state.hands) {
+        console.error('❌ hands가 없습니다!');
+        state.hands = { 0: [], 1: [], 2: [], 3: [] };
+    } else {
+        for (let i = 0; i < 4; i++) {
+            if (!state.hands[i]) {
+                console.warn(`⚠️ 플레이어 ${i}의 손패가 없습니다. 빈 배열로 초기화합니다.`);
+                state.hands[i] = [];
+            }
+        }
+    }
+
+    // Same for tichuCalls
+    if (Array.isArray(state.tichuCalls)) {
+        const callsObj = {};
+        state.tichuCalls.forEach((call, index) => {
+            callsObj[index] = call;
+        });
+        state.tichuCalls = callsObj;
+    }
+
+    if (!state.tichuCalls) {
+        state.tichuCalls = { 0: null, 1: null, 2: null, 3: null };
+    } else {
+        for (let i = 0; i < 4; i++) {
+            if (state.tichuCalls[i] === undefined) {
+                state.tichuCalls[i] = null;
+            }
+        }
+    }
+
+    return state;
+}
+
 function startMultiplayerGame(room) {
     console.log('🎮 게임 시작!', room);
 
     showScreen('game-screen');
-    gameState = room.gameState;
+
+    // Normalize game state to handle Firebase serialization
+    gameState = normalizeGameState(room.gameState);
+    console.log('✅ 게임 상태 정규화 완료:', gameState);
 
     // Clear bot players tracking
     botPlayers = {};
@@ -715,7 +765,7 @@ function startMultiplayerGame(room) {
         const newGameState = snapshot.val();
         if (newGameState) {
             console.log('📡 게임 상태 업데이트 수신');
-            gameState = newGameState;
+            gameState = normalizeGameState(newGameState);
             renderGame();
 
             // Trigger bot play if it's a bot's turn
@@ -1008,14 +1058,32 @@ function endRound() {
 }
 
 function renderGame() {
-    if (!gameState) return;
+    console.log('🎨 renderGame 호출됨');
+
+    if (!gameState) {
+        console.log('❌ gameState가 없습니다');
+        return;
+    }
+
+    if (!gameState.hands) {
+        console.error('❌ gameState.hands가 없습니다!', gameState);
+        return;
+    }
 
     const positions = ['south', 'west', 'north', 'east'];
 
     positions.forEach((pos, index) => {
         const handEl = document.getElementById(`${pos}-hand`);
         const countEl = document.getElementById(`${pos}-count`);
+
+        // Safety check for hands
         const hand = gameState.hands[index];
+        if (!hand || !Array.isArray(hand)) {
+            console.error(`❌ 플레이어 ${index}의 손패가 없거나 배열이 아닙니다:`, hand);
+            if (handEl) handEl.innerHTML = '';
+            if (countEl) countEl.textContent = '0';
+            return; // Skip this player
+        }
 
         handEl.innerHTML = '';
         countEl.textContent = hand.length;
@@ -1038,19 +1106,21 @@ function renderGame() {
 
         // Highlight active player
         const playerEl = document.getElementById(`player-${pos}`);
-        if (gameState.currentPlayer === index) {
-            playerEl.classList.add('active');
-        } else {
-            playerEl.classList.remove('active');
+        if (playerEl) {
+            if (gameState.currentPlayer === index) {
+                playerEl.classList.add('active');
+            } else {
+                playerEl.classList.remove('active');
+            }
         }
 
         // Update Tichu badges
         const tichuEl = document.getElementById(`${pos}-tichu`);
-        if (gameState.tichuCalls[index]) {
+        if (tichuEl && gameState.tichuCalls && gameState.tichuCalls[index]) {
             const type = gameState.tichuCalls[index] === 'grand' ? 'grand' : '';
             const text = gameState.tichuCalls[index] === 'grand' ? 'GT' : 'T';
             tichuEl.innerHTML = `<span class="tichu-badge ${type}">${text}</span>`;
-        } else {
+        } else if (tichuEl) {
             tichuEl.innerHTML = '';
         }
     });
