@@ -642,16 +642,16 @@ function initializeGameState() {
         });
         console.log('✅ 손패 정렬 완료');
 
-        console.log('🀄 마작(숫자 1) 찾는 중...');
-        // Find player with Mahjong (One)
+        console.log('🎴 소원(숫자 1) 찾는 중...');
+        // Find player with Wish card (One)
         let startPlayer = 0;
         Object.entries(hands).forEach(([index, hand]) => {
-            const hasMahjong = hand.some(card =>
+            const hasWish = hand.some(card =>
                 card.isSpecial && (card.name === 'One' || card.name === 'Mah Jong')
             );
-            if (hasMahjong) {
+            if (hasWish) {
                 startPlayer = parseInt(index);
-                console.log(`✅ 마작(숫자 1) 발견: 플레이어 ${index}가 선 플레이어입니다`);
+                console.log(`✅ 소원(숫자 1) 발견: 플레이어 ${index}가 선 플레이어입니다`);
             }
         });
 
@@ -832,18 +832,18 @@ function checkAndTriggerBotPlay() {
 function getCardDisplay(card) {
     if (card.isSpecial) {
         const symbols = {
-            'One': '1',           // 마작 → 숫자 1
+            'One': '1',           // 소원 → 숫자 1
             'Cat': '🐱',          // 개 → 고양이
             'Joker': '🃏',        // 불사조 → 컬러조커
-            'Agni': '🧞‍♂️🔥',       // 용 → 불의 정령 아그니 (사람 형태)
+            'Agni': 'AGNI_IMG',   // 용 → 불의 정령 아그니 (magician 이미지)
             // 구버전 호환
             'Mah Jong': '1',
             'Dog': '🐱',
             'Phoenix': '🃏',
-            'Dragon': '🧞‍♂️🔥',    // 호랑이 → 아그니
-            'Tiger': '🧞‍♂️🔥'
+            'Dragon': 'AGNI_IMG', // 호랑이 → 아그니
+            'Tiger': 'AGNI_IMG'
         };
-        return { display: symbols[card.name] || card.name, suit: 'special' };
+        return { display: symbols[card.name] || card.name, suit: 'special', cardName: card.name };
     }
 
     const valueNames = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
@@ -854,11 +854,20 @@ function getCardDisplay(card) {
 
 function renderCard(card, clickable = false) {
     const cardEl = document.createElement('div');
-    const { display, suit, color } = getCardDisplay(card);
+    const { display, suit, color, cardName } = getCardDisplay(card);
 
     cardEl.className = `card ${color}`;
+
+    // Check if it's the Agni card (magician image)
+    let displayHTML;
+    if (display === 'AGNI_IMG') {
+        displayHTML = `<img src="magician.png" alt="Agni" style="width: 100%; height: 100%; object-fit: contain;">`;
+    } else {
+        displayHTML = display;
+    }
+
     cardEl.innerHTML = `
-        <div class="card-value">${display}</div>
+        <div class="card-value">${displayHTML}</div>
         ${suit ? `<div class="card-suit">${suit}</div>` : ''}
     `;
 
@@ -889,13 +898,18 @@ function toggleCardSelection(card, cardEl) {
 function validateCombination(cards) {
     if (cards.length === 0) return null;
     if (cards.length === 1) {
+        console.log(`🃏 싱글 카드 검증: value=${cards[0].value}`);
         return { type: 'single', value: cards[0].value, cards };
     }
 
     // Check for pair
     if (cards.length === 2) {
+        console.log(`🃏 페어 검증: card1=${cards[0].value}, card2=${cards[1].value}`);
         if (cards[0].value === cards[1].value) {
+            console.log(`✅ 유효한 페어: value=${cards[0].value}`);
             return { type: 'pair', value: cards[0].value, cards };
+        } else {
+            console.log(`❌ 페어 아님: value가 다름`);
         }
     }
 
@@ -978,9 +992,18 @@ function isValidPlay(newPlay, currentPlay) {
         return false;
     }
 
-    if (newPlay.type !== currentPlay.type) return false;
-    if (newPlay.cards.length !== currentPlay.cards.length) return false;
-    return newPlay.value > currentPlay.value;
+    if (newPlay.type !== currentPlay.type) {
+        console.log(`❌ 타입이 다름: new=${newPlay.type}, current=${currentPlay.type}`);
+        return false;
+    }
+    if (newPlay.cards.length !== currentPlay.cards.length) {
+        console.log(`❌ 카드 수가 다름: new=${newPlay.cards.length}, current=${currentPlay.cards.length}`);
+        return false;
+    }
+
+    const isValid = newPlay.value > currentPlay.value;
+    console.log(`🔍 밸류 비교: new=${newPlay.value} vs current=${currentPlay.value}, 결과: ${isValid ? '✅' : '❌'}`);
+    return isValid;
 }
 
 // Helper: Check if cards contain Mah Jong (숫자 1)
@@ -1056,9 +1079,9 @@ function playBomb() {
         }
     }
 
-    // Check if Mah Jong (숫자 1) is played - ask for wish
+    // Check if Wish card (숫자 1) is played - ask for wish
     if (containsMahJong(selectedCards)) {
-        console.log('🀄 숫자 1(마작) 카드 발견! 소원을 빌 수 있습니다.');
+        console.log('🎴 소원(숫자 1) 카드 발견! 소원을 빌 수 있습니다.');
 
         let wishValue = null;
         while (true) {
@@ -1231,9 +1254,9 @@ function playCards() {
     }
 
     // Normal card play
-    // Check if Mah Jong (숫자 1) is played - ask for wish
+    // Check if Wish card (숫자 1) is played - ask for wish
     if (containsMahJong(selectedCards)) {
-        console.log('🀄 숫자 1(마작) 카드 발견! 소원을 빌 수 있습니다.');
+        console.log('🎴 소원(숫자 1) 카드 발견! 소원을 빌 수 있습니다.');
 
         let wishValue = null;
         while (true) {
@@ -1957,9 +1980,9 @@ function playBotCards(botPosition, combination) {
             return;
         }
 
-        // Check if bot is playing Mah Jong (숫자 1) - make a wish
+        // Check if bot is playing Wish card (숫자 1) - make a wish
         if (containsMahJong(combination.cards)) {
-            console.log('🤖 봇이 숫자 1(마작)을 냈습니다! 소원을 빕니다.');
+            console.log('🤖 봇이 소원(숫자 1)을 냈습니다! 소원을 빕니다.');
             // Bot makes a random wish (2-14)
             const wishValue = Math.floor(Math.random() * 13) + 2; // 2~14
             gameState.wish = wishValue;
