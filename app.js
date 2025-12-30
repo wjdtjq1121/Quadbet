@@ -605,8 +605,13 @@ function sortHand(hand) {
 }
 
 function startMultiplayerGame(room) {
+    console.log('🎮 게임 시작!', room);
+
     showScreen('game-screen');
     gameState = room.gameState;
+
+    // Clear bot players tracking
+    botPlayers = {};
 
     // Set player names and track bots
     const positions = ['south', 'west', 'north', 'east'];
@@ -616,21 +621,28 @@ function startMultiplayerGame(room) {
             document.getElementById(`${pos}-name`).textContent = player.nickname;
             if (player.isBot) {
                 botPlayers[index] = true;
+                console.log(`🤖 위치 ${index} (${pos})는 봇입니다:`, player.nickname);
+            } else {
+                console.log(`👤 위치 ${index} (${pos})는 사람입니다:`, player.nickname);
             }
         }
     });
+
+    console.log('🤖 봇 플레이어 목록:', botPlayers);
 
     // Listen to game state changes
     const gameStateRef = database.ref(`rooms/${currentRoom.code}/gameState`);
     gameStateRef.on('value', (snapshot) => {
         const newGameState = snapshot.val();
         if (newGameState) {
+            console.log('📡 게임 상태 업데이트 수신');
             gameState = newGameState;
             renderGame();
 
             // Trigger bot play if it's a bot's turn
             if (botPlayers[gameState.currentPlayer] && gameState.roundActive) {
-                triggerBotPlay();
+                console.log('🤖 봇 턴 감지 - 플레이 시작');
+                setTimeout(() => triggerBotPlay(), 100); // Small delay for rendering
             }
         }
     });
@@ -639,7 +651,8 @@ function startMultiplayerGame(room) {
 
     // Trigger initial bot play if needed
     if (botPlayers[gameState.currentPlayer] && gameState.roundActive) {
-        triggerBotPlay();
+        console.log('🤖 초기 봇 턴 - 플레이 시작');
+        setTimeout(() => triggerBotPlay(), 500);
     }
 }
 
@@ -868,7 +881,21 @@ function isMyTurn() {
 }
 
 function syncGameState() {
-    database.ref(`rooms/${currentRoom.code}/gameState`).set(gameState);
+    console.log('🔄 syncGameState - 게임 상태 동기화 중...');
+
+    if (!currentRoom.code) {
+        console.error('❌ 방 코드가 없습니다!');
+        return;
+    }
+
+    database.ref(`rooms/${currentRoom.code}/gameState`).set(gameState)
+        .then(() => {
+            console.log('✅ 게임 상태 동기화 성공');
+        })
+        .catch((error) => {
+            console.error('❌ 게임 상태 동기화 실패:', error);
+            alert('게임 상태 동기화 실패: ' + error.message);
+        });
 }
 
 function endRound() {
@@ -1032,7 +1059,20 @@ function leaveGame() {
 // ==================== BOT AI ====================
 
 function triggerBotPlay() {
+    console.log('🤖 triggerBotPlay 호출됨');
+
+    if (!gameState || !gameState.roundActive) {
+        console.log('❌ 게임 상태가 없거나 라운드가 비활성화됨');
+        return;
+    }
+
     const botPosition = gameState.currentPlayer;
+    console.log('🤖 현재 플레이어:', botPosition, '봇 여부:', botPlayers[botPosition]);
+
+    if (!botPlayers[botPosition]) {
+        console.log('❌ 현재 플레이어는 봇이 아닙니다');
+        return;
+    }
 
     // Clear any existing timer for this bot
     if (botTimers[botPosition]) {
@@ -1041,27 +1081,57 @@ function triggerBotPlay() {
 
     // Add delay to simulate thinking (1-2 seconds)
     const delay = 1000 + Math.random() * 1000;
+    console.log(`⏱️ 봇이 ${Math.round(delay)}ms 후에 플레이합니다`);
 
     botTimers[botPosition] = setTimeout(() => {
-        executeBotPlay(botPosition);
+        try {
+            executeBotPlay(botPosition);
+        } catch (error) {
+            console.error('❌ 봇 플레이 중 에러:', error);
+            // 에러 발생 시 패스 처리
+            passBotTurn(botPosition);
+        }
     }, delay);
 }
 
 function executeBotPlay(botPosition) {
-    if (!gameState || !gameState.roundActive) return;
-    if (gameState.currentPlayer !== botPosition) return;
+    console.log('🎮 executeBotPlay 시작 - 봇 위치:', botPosition);
+
+    if (!gameState || !gameState.roundActive) {
+        console.log('❌ 게임 상태가 없거나 라운드가 비활성화됨');
+        return;
+    }
+
+    if (gameState.currentPlayer !== botPosition) {
+        console.log('❌ 현재 턴이 아닙니다. 현재:', gameState.currentPlayer, '봇:', botPosition);
+        return;
+    }
 
     const hand = gameState.hands[botPosition];
-    if (!hand || hand.length === 0) return;
+    if (!hand || hand.length === 0) {
+        console.log('❌ 봇의 손패가 없거나 비어있습니다');
+        return;
+    }
 
-    // Bot AI logic - try to find a valid play
-    const validPlay = findBotPlay(hand, gameState.currentPlay);
+    console.log('🃏 봇의 카드 수:', hand.length);
+    console.log('🎯 현재 플레이:', gameState.currentPlay);
 
-    if (validPlay) {
-        // Bot plays cards
-        playBotCards(botPosition, validPlay);
-    } else {
-        // Bot passes
+    try {
+        // Bot AI logic - try to find a valid play
+        const validPlay = findBotPlay(hand, gameState.currentPlay);
+
+        if (validPlay) {
+            console.log('✅ 봇이 낼 카드를 찾았습니다:', validPlay.type, validPlay.cards.length, '장');
+            // Bot plays cards
+            playBotCards(botPosition, validPlay);
+        } else {
+            console.log('⏭️ 봇이 낼 카드가 없어서 패스합니다');
+            // Bot passes
+            passBotTurn(botPosition);
+        }
+    } catch (error) {
+        console.error('❌ executeBotPlay 에러:', error);
+        // 에러 발생 시 패스
         passBotTurn(botPosition);
     }
 }
@@ -1114,46 +1184,73 @@ function findBotPlay(hand, currentPlay) {
 }
 
 function playBotCards(botPosition, combination) {
-    // Remove cards from bot's hand
-    const botHand = gameState.hands[botPosition];
-    combination.cards.forEach(card => {
-        const index = botHand.findIndex(c =>
-            c.value === card.value &&
-            c.suit === card.suit &&
-            c.name === card.name
-        );
-        if (index > -1) botHand.splice(index, 1);
-    });
+    console.log('🎴 playBotCards 시작 - 위치:', botPosition, '조합:', combination.type);
 
-    // Update game state
-    gameState.currentPlay = combination;
-    gameState.consecutivePasses = 0;
+    try {
+        // Remove cards from bot's hand
+        const botHand = gameState.hands[botPosition];
+        const originalLength = botHand.length;
 
-    // Check if bot finished
-    if (botHand.length === 0) {
-        gameState.finishedPlayers.push(botPosition);
+        combination.cards.forEach(card => {
+            const index = botHand.findIndex(c =>
+                c.value === card.value &&
+                c.suit === card.suit &&
+                c.name === card.name
+            );
+            if (index > -1) {
+                botHand.splice(index, 1);
+                console.log('✂️ 카드 제거:', card.value, card.suit);
+            } else {
+                console.warn('⚠️ 제거할 카드를 찾지 못함:', card);
+            }
+        });
 
-        if (gameState.finishedPlayers.length === 3) {
-            endRound();
-            syncGameState();
-            return;
+        console.log(`📉 봇 손패: ${originalLength} → ${botHand.length}`);
+
+        // Update game state
+        gameState.currentPlay = combination;
+        gameState.consecutivePasses = 0;
+
+        // Check if bot finished
+        if (botHand.length === 0) {
+            console.log('🏁 봇이 모든 카드를 냈습니다!');
+            gameState.finishedPlayers.push(botPosition);
+
+            if (gameState.finishedPlayers.length === 3) {
+                console.log('🎊 라운드 종료! (3명 완료)');
+                endRound();
+                syncGameState();
+                return;
+            }
         }
-    }
 
-    nextTurn();
-    syncGameState();
+        nextTurn();
+        syncGameState();
+    } catch (error) {
+        console.error('❌ playBotCards 에러:', error);
+        throw error;
+    }
 }
 
 function passBotTurn(botPosition) {
-    gameState.consecutivePasses++;
+    console.log('⏭️ passBotTurn - 위치:', botPosition);
 
-    if (gameState.consecutivePasses === 3) {
-        gameState.currentPlay = null;
-        gameState.consecutivePasses = 0;
+    try {
+        gameState.consecutivePasses++;
+        console.log('📊 연속 패스:', gameState.consecutivePasses);
+
+        if (gameState.consecutivePasses === 3) {
+            console.log('🧹 테이블 클리어! (3연속 패스)');
+            gameState.currentPlay = null;
+            gameState.consecutivePasses = 0;
+        }
+
+        nextTurn();
+        syncGameState();
+    } catch (error) {
+        console.error('❌ passBotTurn 에러:', error);
+        throw error;
     }
-
-    nextTurn();
-    syncGameState();
 }
 
 // ==================== EVENT LISTENERS ====================
