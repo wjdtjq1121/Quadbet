@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>테스트 페이지</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .test-box {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background: #667eea;
+            color: white;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .log {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .log-item {
+            margin: 2px 0;
+        }
+        .error {
+            color: #ff6b6b;
+        }
+        .success {
+            color: #51cf66;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Quadbet 테스트 페이지</h1>
+
+    <div class="test-box">
+        <h2>1. JavaScript & Firebase 로드 확인</h2>
+        <button onclick="testLoad()">로드 상태 확인</button>
+    </div>
+
+    <div class="test-box">
+        <h2>2. 함수 정의 확인</h2>
+        <button onclick="testFunctions()">함수 확인</button>
+    </div>
+
+    <div class="test-box">
+        <h2>3. 닉네임 설정 테스트</h2>
+        <input type="text" id="test-nickname" placeholder="테스트 닉네임" value="테스터">
+        <button onclick="testSetNickname()">닉네임 설정</button>
+    </div>
+
+    <div class="test-box">
+        <h2>4. 방 만들기 테스트</h2>
+        <button onclick="testCreateRoom()">방 만들기</button>
+    </div>
+
+    <div class="test-box">
+        <h2>콘솔 로그</h2>
+        <div class="log" id="log"></div>
+        <button onclick="clearLog()">로그 지우기</button>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <script>
+        // Custom console logger
+        const logDiv = document.getElementById('log');
+        const originalLog = console.log;
+        const originalError = console.error;
+
+        function addLog(message, type = 'info') {
+            const item = document.createElement('div');
+            item.className = 'log-item ' + type;
+            item.textContent = new Date().toLocaleTimeString() + ' - ' + message;
+            logDiv.appendChild(item);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addLog(args.join(' '), 'success');
+        };
+
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addLog('ERROR: ' + args.join(' '), 'error');
+        };
+
+        function clearLog() {
+            logDiv.innerHTML = '';
+        }
+
+        // Test functions
+        function testLoad() {
+            addLog('=== 로드 상태 확인 ===');
+            addLog('Firebase 객체: ' + (typeof firebase !== 'undefined' ? '✓ OK' : '✗ NOT FOUND'));
+            addLog('Firebase App: ' + (typeof firebase.app !== 'undefined' ? '✓ OK' : '✗ NOT FOUND'));
+            addLog('Firebase Database: ' + (typeof firebase.database !== 'undefined' ? '✓ OK' : '✗ NOT FOUND'));
+            addLog('app.js 로드: ' + (typeof createRoom !== 'undefined' ? '✓ OK' : '✗ NOT FOUND'));
+        }
+
+        function testFunctions() {
+            addLog('=== 함수 정의 확인 ===');
+            addLog('createRoom: ' + (typeof createRoom === 'function' ? '✓ 정의됨' : '✗ 정의 안됨'));
+            addLog('setNickname: ' + (typeof setNickname === 'function' ? '✓ 정의됨' : '✗ 정의 안됨'));
+            addLog('showScreen: ' + (typeof showScreen === 'function' ? '✓ 정의됨' : '✗ 정의 안됨'));
+            addLog('joinRoom: ' + (typeof joinRoom === 'function' ? '✓ 정의됨' : '✗ 정의 안됨'));
+        }
+
+        function testSetNickname() {
+            addLog('=== 닉네임 설정 테스트 ===');
+            const nickname = document.getElementById('test-nickname').value;
+            addLog('입력된 닉네임: ' + nickname);
+
+            if (typeof setNickname === 'function') {
+                // Temporarily set the nickname input
+                document.getElementById('nickname-input').value = nickname;
+                setNickname();
+                addLog('setNickname() 호출 완료');
+            } else {
+                addLog('setNickname 함수를 찾을 수 없습니다', 'error');
+            }
+        }
+
+        function testCreateRoom() {
+            addLog('=== 방 만들기 테스트 ===');
+
+            if (typeof createRoom === 'function') {
+                addLog('createRoom() 호출 시도...');
+                try {
+                    createRoom();
+                    addLog('createRoom() 호출 완료');
+                } catch (error) {
+                    addLog('에러 발생: ' + error.message, 'error');
+                }
+            } else {
+                addLog('createRoom 함수를 찾을 수 없습니다', 'error');
+            }
+        }
+
+        // Load app.js after Firebase
+        window.addEventListener('DOMContentLoaded', () => {
+            addLog('페이지 로드됨');
+            addLog('Firebase 로딩 중...');
+
+            // Load app.js
+            const script = document.createElement('script');
+            script.src = 'app.js';
+            script.onload = () => {
+                addLog('app.js 로드 완료');
+                testLoad();
+            };
+            script.onerror = () => {
+                addLog('app.js 로드 실패!', 'error');
+            };
+            document.body.appendChild(script);
+        });
+    </script>
+</body>
+</html>

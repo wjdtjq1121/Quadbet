@@ -1,3 +1,12 @@
+// Global error handler
+window.onerror = function(message, source, lineno, colno, error) {
+    console.error('전역 에러 발생:', message, '파일:', source, '라인:', lineno);
+    alert('에러 발생: ' + message);
+    return false;
+};
+
+console.log('=== app.js 로드 시작 ===');
+
 // Firebase configuration
 const firebaseConfig = {
     apiKey: "AIzaSyA2jz0vIq-bxyxHaYU7L_mrYgWC0Du5A1U",
@@ -8,6 +17,8 @@ const firebaseConfig = {
     appId: "1:523137720350:web:a520ff5da7e4505f324e0f",
     measurementId: "G-MTN4L65HFJ"
 };
+
+console.log('Firebase 설정:', firebaseConfig);
 
 // Initialize Firebase
 let database;
@@ -1122,4 +1133,17 @@ document.getElementById('nickname-input').addEventListener('keypress', (e) => {
 
 document.getElementById('room-code-input').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') joinRoomByCode();
+});
+
+// Debug: Check if functions are defined
+console.log('=== app.js 로드 완료 ===');
+console.log('createRoom 함수 정의됨:', typeof createRoom === 'function');
+console.log('setNickname 함수 정의됨:', typeof setNickname === 'function');
+console.log('showScreen 함수 정의됨:', typeof showScreen === 'function');
+
+// Test log on page load
+window.addEventListener('DOMContentLoaded', () => {
+    console.log('페이지 로드 완료');
+    console.log('Firebase 객체:', typeof firebase !== 'undefined' ? 'OK' : 'NOT FOUND');
+    console.log('database 객체:', typeof database !== 'undefined' ? 'OK' : 'NOT FOUND');
 });
