@@ -566,10 +566,10 @@ const SUITS = {
 };
 
 const SPECIAL_CARDS = {
-    MAHJONG: { name: 'Mah Jong', value: 1, points: 0, isSpecial: true },
-    DOG: { name: 'Dog', value: 0, points: 0, isSpecial: true },
-    PHOENIX: { name: 'Phoenix', value: -1, points: -25, isSpecial: true },
-    DRAGON: { name: 'Dragon', value: 15, points: 25, isSpecial: true }
+    MAHJONG: { name: 'One', value: 1, points: 0, isSpecial: true },
+    DOG: { name: 'Cat', value: 0, points: 0, isSpecial: true },
+    PHOENIX: { name: 'Joker', value: -1, points: -25, isSpecial: true },
+    DRAGON: { name: 'Tiger', value: 15, points: 25, isSpecial: true }
 };
 
 let gameState = null;
@@ -812,10 +812,15 @@ function checkAndTriggerBotPlay() {
 function getCardDisplay(card) {
     if (card.isSpecial) {
         const symbols = {
-            'Mah Jong': '🀄',
-            'Dog': '🐕',
-            'Phoenix': '🔥',
-            'Dragon': '🐉'
+            'One': '1',           // 마작 → 숫자 1
+            'Cat': '🐱',          // 개 → 고양이
+            'Joker': '🃏',        // 불사조 → 컬러조커
+            'Tiger': '🐯',        // 용 → 호랑이
+            // 구버전 호환
+            'Mah Jong': '1',
+            'Dog': '🐱',
+            'Phoenix': '🃏',
+            'Dragon': '🐯'
         };
         return { display: symbols[card.name] || card.name, suit: 'special' };
     }
@@ -987,6 +992,62 @@ function playCards() {
 
     console.log('✅ 유효한 플레이!');
 
+    // Check if it's a Cat (Dog) card
+    const isCat = selectedCards.length === 1 && selectedCards[0].isSpecial &&
+                  (selectedCards[0].name === 'Cat' || selectedCards[0].name === 'Dog');
+
+    if (isCat) {
+        console.log('🐱 고양이 카드! 파트너에게 턴 전달');
+
+        // Only allowed when leading a new trick
+        if (gameState.currentPlay !== null) {
+            alert('고양이는 새로운 트릭을 시작할 때만 낼 수 있습니다!');
+            return;
+        }
+
+        // Remove cat from hand
+        const myHand = gameState.hands[currentRoom.playerPosition];
+        const index = myHand.findIndex(c => JSON.stringify(c) === JSON.stringify(selectedCards[0]));
+        if (index > -1) myHand.splice(index, 1);
+        selectedCards = [];
+
+        // Find partner (opposite player)
+        const myPosition = currentRoom.playerPosition;
+        let partnerPosition = (myPosition + 2) % 4;
+
+        console.log(`🔍 내 위치: ${myPosition}, 파트너 위치: ${partnerPosition}`);
+
+        // Check if partner has finished
+        if (gameState.finishedPlayers.includes(partnerPosition)) {
+            console.log('⚠️ 파트너가 이미 나갔습니다. 시계방향으로 이동...');
+
+            // Move clockwise from partner until we find someone who hasn't finished
+            let nextPlayer = (partnerPosition + 1) % 4;
+            let attempts = 0;
+
+            while (gameState.finishedPlayers.includes(nextPlayer) && attempts < 4) {
+                console.log(`⏭️ 플레이어 ${nextPlayer}도 나갔습니다. 계속 이동...`);
+                nextPlayer = (nextPlayer + 1) % 4;
+                attempts++;
+            }
+
+            gameState.currentPlayer = nextPlayer;
+            console.log(`✅ 턴이 플레이어 ${nextPlayer}에게 넘어갑니다`);
+        } else {
+            // Partner is still playing, give turn to partner
+            gameState.currentPlayer = partnerPosition;
+            console.log(`✅ 파트너(${partnerPosition})에게 턴 전달! 원하는 조합을 낼 수 있습니다.`);
+        }
+
+        // Cat doesn't set currentPlay - new trick starts
+        gameState.currentPlay = null;
+        gameState.consecutivePasses = 0;
+
+        syncGameState();
+        return;
+    }
+
+    // Normal card play
     // Remove cards from hand
     const myHand = gameState.hands[currentRoom.playerPosition];
     selectedCards.forEach(card => {
