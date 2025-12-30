@@ -569,7 +569,7 @@ const SPECIAL_CARDS = {
     MAHJONG: { name: 'One', value: 1, points: 0, isSpecial: true },
     DOG: { name: 'Cat', value: 0, points: 0, isSpecial: true },
     PHOENIX: { name: 'Joker', value: -1, points: -25, isSpecial: true },
-    DRAGON: { name: 'Tiger', value: 15, points: 25, isSpecial: true }
+    DRAGON: { name: 'Agni', value: 15, points: 25, isSpecial: true }
 };
 
 let gameState = null;
@@ -659,10 +659,11 @@ function initializeGameState() {
             currentPlay: null,
             consecutivePasses: 0,
             finishedPlayers: [],
-            tichuCalls: { 0: null, 1: null, 2: null, 3: null },
+            bettingCalls: { 0: null, 1: null, 2: null, 3: null }, // 'grand' or 'quad'
             totalScores: { team1: 0, team2: 0 },
             roundActive: true,
-            wish: null // Mah Jong wish (숫자 1 소원)
+            wish: null, // Mah Jong wish (숫자 1 소원)
+            cardsPlayed: { 0: false, 1: false, 2: false, 3: false } // Track if player has played a card
         };
 
         console.log('✅ 게임 상태 초기화 완료');
@@ -709,21 +710,37 @@ function normalizeGameState(state) {
         }
     }
 
-    // Same for tichuCalls
-    if (Array.isArray(state.tichuCalls)) {
+    // Same for bettingCalls (renamed from tichuCalls)
+    if (Array.isArray(state.bettingCalls)) {
         const callsObj = {};
-        state.tichuCalls.forEach((call, index) => {
+        state.bettingCalls.forEach((call, index) => {
             callsObj[index] = call;
         });
-        state.tichuCalls = callsObj;
+        state.bettingCalls = callsObj;
     }
 
-    if (!state.tichuCalls) {
-        state.tichuCalls = { 0: null, 1: null, 2: null, 3: null };
+    // Handle legacy tichuCalls
+    if (state.tichuCalls && !state.bettingCalls) {
+        state.bettingCalls = state.tichuCalls;
+    }
+
+    if (!state.bettingCalls) {
+        state.bettingCalls = { 0: null, 1: null, 2: null, 3: null };
     } else {
         for (let i = 0; i < 4; i++) {
-            if (state.tichuCalls[i] === undefined) {
-                state.tichuCalls[i] = null;
+            if (state.bettingCalls[i] === undefined) {
+                state.bettingCalls[i] = null;
+            }
+        }
+    }
+
+    // Handle cardsPlayed
+    if (!state.cardsPlayed) {
+        state.cardsPlayed = { 0: false, 1: false, 2: false, 3: false };
+    } else {
+        for (let i = 0; i < 4; i++) {
+            if (state.cardsPlayed[i] === undefined) {
+                state.cardsPlayed[i] = false;
             }
         }
     }
@@ -816,12 +833,13 @@ function getCardDisplay(card) {
             'One': '1',           // 마작 → 숫자 1
             'Cat': '🐱',          // 개 → 고양이
             'Joker': '🃏',        // 불사조 → 컬러조커
-            'Tiger': '🐯',        // 용 → 호랑이
+            'Agni': '🔥✨',       // 용 → 불의 정령 아그니
             // 구버전 호환
             'Mah Jong': '1',
             'Dog': '🐱',
             'Phoenix': '🃏',
-            'Dragon': '🐯'
+            'Dragon': '🔥✨',    // 호랑이 → 아그니
+            'Tiger': '🔥✨'
         };
         return { display: symbols[card.name] || card.name, suit: 'special' };
     }
@@ -1145,6 +1163,9 @@ function playCards() {
         if (index > -1) myHand.splice(index, 1);
     });
 
+    // Mark that this player has played a card (disables grand betting)
+    gameState.cardsPlayed[currentRoom.playerPosition] = true;
+
     // Update game state
     gameState.currentPlay = combination;
     gameState.consecutivePasses = 0;
@@ -1271,8 +1292,60 @@ function endRound() {
         }
     }
 
+    // Calculate betting bonuses/penalties
+    if (gameState.bettingCalls && gameState.finishedPlayers.length > 0) {
+        const firstPlayer = gameState.finishedPlayers[0];
+
+        for (let i = 0; i < 4; i++) {
+            const bet = gameState.bettingCalls[i];
+            if (bet) {
+                const isWinner = (i === firstPlayer);
+                const team = i % 2 === 0 ? 'team1' : 'team2';
+
+                if (bet === 'grand') {
+                    // Grand Betting: ±200 points
+                    if (isWinner) {
+                        console.log(`✅ 플레이어 ${i}: 그랜드 베팅 성공! +200점`);
+                        if (team === 'team1') {
+                            team1Points += 200;
+                        } else {
+                            team2Points += 200;
+                        }
+                    } else {
+                        console.log(`❌ 플레이어 ${i}: 그랜드 베팅 실패! -200점`);
+                        if (team === 'team1') {
+                            team1Points -= 200;
+                        } else {
+                            team2Points -= 200;
+                        }
+                    }
+                } else if (bet === 'quad') {
+                    // Quad Betting: ±100 points
+                    if (isWinner) {
+                        console.log(`✅ 플레이어 ${i}: 쿼드 베팅 성공! +100점`);
+                        if (team === 'team1') {
+                            team1Points += 100;
+                        } else {
+                            team2Points += 100;
+                        }
+                    } else {
+                        console.log(`❌ 플레이어 ${i}: 쿼드 베팅 실패! -100점`);
+                        if (team === 'team1') {
+                            team1Points -= 100;
+                        } else {
+                            team2Points -= 100;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     gameState.totalScores.team1 += team1Points;
     gameState.totalScores.team2 += team2Points;
+
+    console.log(`📊 라운드 종료 점수 - 팀1: +${team1Points}, 팀2: +${team2Points}`);
+    console.log(`🏆 총점 - 팀1: ${gameState.totalScores.team1}, 팀2: ${gameState.totalScores.team2}`);
 
     if (gameState.totalScores.team1 >= 1000 || gameState.totalScores.team2 >= 1000) {
         const winner = gameState.totalScores.team1 > gameState.totalScores.team2 ? '팀 1' : '팀 2';
@@ -1348,14 +1421,14 @@ function renderGame() {
                     }
                 }
 
-                // Update Tichu badges
-                const tichuEl = document.getElementById(`${pos}-tichu`);
-                if (tichuEl && gameState.tichuCalls && gameState.tichuCalls[index]) {
-                    const type = gameState.tichuCalls[index] === 'grand' ? 'grand' : '';
-                    const text = gameState.tichuCalls[index] === 'grand' ? 'GT' : 'T';
-                    tichuEl.innerHTML = `<span class="tichu-badge ${type}">${text}</span>`;
-                } else if (tichuEl) {
-                    tichuEl.innerHTML = '';
+                // Update Betting badges
+                const bettingEl = document.getElementById(`${pos}-tichu`); // Using same DOM element
+                if (bettingEl && gameState.bettingCalls && gameState.bettingCalls[index]) {
+                    const type = gameState.bettingCalls[index] === 'grand' ? 'grand' : '';
+                    const text = gameState.bettingCalls[index] === 'grand' ? 'GB' : 'QB'; // Grand Betting / Quad Betting
+                    bettingEl.innerHTML = `<span class="tichu-badge ${type}">${text}</span>`;
+                } else if (bettingEl) {
+                    bettingEl.innerHTML = '';
                 }
             } catch (err) {
                 console.error(`❌ renderGame 루프 에러 (${pos}):`, err);
@@ -1452,12 +1525,21 @@ function renderGame() {
         // Update button states
         const btnPlay = document.getElementById('btn-play');
         const btnPass = document.getElementById('btn-pass');
-        const btnTichu = document.getElementById('btn-tichu');
+        const btnBetting = document.getElementById('btn-tichu'); // Using same button
 
         if (btnPlay) btnPlay.disabled = !isMyTurn() || !gameState.roundActive;
         if (btnPass) btnPass.disabled = !isMyTurn() || !gameState.roundActive;
-        if (btnTichu && gameState.tichuCalls && currentRoom.playerPosition !== null) {
-            btnTichu.disabled = gameState.tichuCalls[currentRoom.playerPosition] !== null || !gameState.roundActive;
+        if (btnBetting && gameState.bettingCalls && currentRoom.playerPosition !== null) {
+            // Can't bet if already bet or round is not active
+            btnBetting.disabled = gameState.bettingCalls[currentRoom.playerPosition] !== null || !gameState.roundActive;
+
+            // Update button text based on whether player has played cards
+            const hasPlayedCards = gameState.cardsPlayed && gameState.cardsPlayed[currentRoom.playerPosition];
+            if (hasPlayedCards) {
+                btnBetting.textContent = '🎲 쿼드 베팅'; // Only Quad betting available
+            } else {
+                btnBetting.textContent = '🎲 베팅'; // Both available - will prompt
+            }
         }
 
         console.log('📊 렌더링 완료 - 현재 플레이어:', gameState.currentPlayer, '봇 여부:', !!botPlayers[gameState.currentPlayer], '라운드 활성:', gameState.roundActive);
@@ -1468,12 +1550,50 @@ function renderGame() {
     }
 }
 
-function declareTichu() {
-    if (gameState.tichuCalls[currentRoom.playerPosition] === null && gameState.roundActive) {
-        gameState.tichuCalls[currentRoom.playerPosition] = 'tichu';
-        syncGameState();
-        alert('티추를 선언했습니다!');
+function declareBetting() {
+    if (gameState.bettingCalls[currentRoom.playerPosition] !== null) {
+        alert('이미 베팅하셨습니다!');
+        return;
     }
+
+    if (!gameState.roundActive) {
+        alert('라운드가 활성화되지 않았습니다!');
+        return;
+    }
+
+    const hasPlayedCards = gameState.cardsPlayed && gameState.cardsPlayed[currentRoom.playerPosition];
+
+    // Check if Grand Betting is available (only if no cards played yet - first 8 cards)
+    if (!hasPlayedCards) {
+        // Both Grand and Quad betting available
+        const choice = confirm('그랜드 베팅(성공 +200점, 실패 -200점)을 하시겠습니까?\n\n취소를 누르면 쿼드 베팅(성공 +100점, 실패 -100점)을 선택할 수 있습니다.');
+
+        if (choice) {
+            gameState.bettingCalls[currentRoom.playerPosition] = 'grand';
+            syncGameState();
+            alert('🎰 그랜드 베팅 선언! 1등으로 모든 카드를 내야 합니다.\n성공: +200점 | 실패: -200점');
+        } else {
+            const quadChoice = confirm('쿼드 베팅(성공 +100점, 실패 -100점)을 하시겠습니까?');
+            if (quadChoice) {
+                gameState.bettingCalls[currentRoom.playerPosition] = 'quad';
+                syncGameState();
+                alert('🎲 쿼드 베팅 선언! 1등으로 모든 카드를 내야 합니다.\n성공: +100점 | 실패: -100점');
+            }
+        }
+    } else {
+        // Only Quad betting available (already played cards)
+        const choice = confirm('쿼드 베팅(성공 +100점, 실패 -100점)을 하시겠습니까?');
+        if (choice) {
+            gameState.bettingCalls[currentRoom.playerPosition] = 'quad';
+            syncGameState();
+            alert('🎲 쿼드 베팅 선언! 1등으로 모든 카드를 내야 합니다.\n성공: +100점 | 실패: -100점');
+        }
+    }
+}
+
+// Legacy function name for compatibility
+function declareTichu() {
+    declareBetting();
 }
 
 function startNewRound() {
@@ -1588,7 +1708,7 @@ function findBotPlay(hand, currentPlay) {
             return null;
         }
 
-        // If no current play, play lowest card/combination
+        // If no current play, try to play combinations first (pair, triple) then single
         if (!currentPlay) {
             // Check if we must fulfill a wish
             if (gameState.wish && hasWishCard(hand, gameState.wish)) {
@@ -1607,7 +1727,24 @@ function findBotPlay(hand, currentPlay) {
                 }
             }
 
-            // Just play single lowest card for simplicity
+            // Try to find combinations (prefer triple > pair > single)
+            // Try triple first
+            for (let i = 0; i < hand.length - 2; i++) {
+                if (hand[i].value === hand[i + 1].value && hand[i + 1].value === hand[i + 2].value) {
+                    console.log('🤖 봇: 트리플 발견!');
+                    return { type: 'triple', value: hand[i].value, cards: [hand[i], hand[i + 1], hand[i + 2]] };
+                }
+            }
+
+            // Try pair next
+            for (let i = 0; i < hand.length - 1; i++) {
+                if (hand[i].value === hand[i + 1].value) {
+                    console.log('🤖 봇: 페어 발견!');
+                    return { type: 'pair', value: hand[i].value, cards: [hand[i], hand[i + 1]] };
+                }
+            }
+
+            // Finally play single lowest card
             if (hand[0] && hand[0].value !== undefined) {
                 return { type: 'single', value: hand[0].value, cards: [hand[0]] };
             } else {
@@ -1741,6 +1878,9 @@ function playBotCards(botPosition, combination) {
         });
 
         console.log(`📉 봇 손패: ${originalLength} → ${botHand.length}`);
+
+        // Mark that this bot has played a card (disables grand betting)
+        gameState.cardsPlayed[botPosition] = true;
 
         // Update game state
         gameState.currentPlay = combination;
