@@ -981,9 +981,11 @@ function toggleCardSelection(card, cardEl) {
     if (cardIndex > -1) {
         selectedCards.splice(cardIndex, 1);
         cardEl.classList.remove('selected');
+        console.log(`🔽 카드 선택 해제:`, card.isSpecial ? card.name : `${card.value}${card.suit[0]}`, '(현재:', selectedCards.length, '장)');
     } else {
         selectedCards.push(card);
         cardEl.classList.add('selected');
+        console.log(`🔼 카드 선택:`, card.isSpecial ? card.name : `${card.value}${card.suit[0]}`, '(현재:', selectedCards.length, '장)');
     }
 }
 
@@ -1216,6 +1218,15 @@ function isBomb(combination) {
 }
 
 async function playCards() {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🎴 playCards() 호출됨');
+    console.log('  selectedCards 길이:', selectedCards.length);
+    console.log('  selectedCards 내용:', selectedCards.map(c => {
+        if (c.isSpecial) return c.name;
+        return `${c.value}${c.suit[0]}`;
+    }).join(', '));
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
     if (selectedCards.length === 0) {
         alert('카드를 선택해주세요!');
         return;
@@ -1309,7 +1320,7 @@ async function playCards() {
     console.log('🎴 일반 카드 플레이 시도:', selectedCards.length, '장');
     console.log('🎴 선택된 카드:', selectedCards.map(c => {
         if (c.isSpecial) return c.name;
-        return `${c.value}${c.suit[0]}`;
+        return `${c.value}${c.suit[0]} (type: ${typeof c.value})`;
     }).join(', '));
 
     // Validate combination
@@ -1320,7 +1331,7 @@ async function playCards() {
         return;
     }
 
-    console.log('✅ 유효한 조합:', combination.type, 'value:', combination.value);
+    console.log('✅ 유효한 조합:', combination.type, 'value:', combination.value, '(type:', typeof combination.value, ')');
 
     // Check if it's a bomb - bombs can be played anytime!
     const isBombPlay = isBomb(combination);
@@ -1364,8 +1375,8 @@ async function playCards() {
 
         const validPlay = isValidPlay(combination, gameState.currentPlay);
         console.log('🔍 isValidPlay 결과:', validPlay);
-        console.log('🔍 현재 플레이:', gameState.currentPlay ? `${gameState.currentPlay.type} (value: ${gameState.currentPlay.value})` : 'null');
-        console.log('🔍 내 조합:', `${combination.type} (value: ${combination.value})`);
+        console.log('🔍 현재 플레이:', gameState.currentPlay ? `${gameState.currentPlay.type} (value: ${gameState.currentPlay.value}, type: ${typeof gameState.currentPlay.value})` : 'null');
+        console.log('🔍 내 조합:', `${combination.type} (value: ${combination.value}, type: ${typeof combination.value})`);
 
         if (!validPlay) {
             if (gameState.currentPlay) {
@@ -1494,14 +1505,17 @@ function passTurn() {
     }
 
     console.log('👋 패스 호출');
-    console.log('  선택된 카드:', selectedCards.length, '장');
+    console.log('  선택된 카드 (패스 전):', selectedCards.map(c => {
+        if (c.isSpecial) return c.name;
+        return `${c.value}${c.suit[0]}`;
+    }).join(', '));
 
     // Clear auto-pass flag
     autoPassPending = false;
 
     // IMPORTANT: Clear selected cards FIRST before any logic
-    selectedCards.length = 0; // Clear array in-place
-    console.log('  ✅ 선택 카드 초기화 완료');
+    selectedCards.splice(0, selectedCards.length); // Clear array completely
+    console.log('  ✅ 선택 카드 초기화 완료, 현재 길이:', selectedCards.length);
 
     gameState.consecutivePasses++;
 
