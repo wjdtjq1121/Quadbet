@@ -780,12 +780,72 @@
             /* Lobby options - stack on mobile */
             .lobby-options {
                 grid-template-columns: 1fr;
-                gap: 20px;
+                gap: 15px;
             }
 
-            /* Players grid */
+            .lobby-option {
+                padding: 20px 15px;
+            }
+
+            .lobby-option h3 {
+                font-size: 1.3em;
+                margin-bottom: 10px;
+            }
+
+            .lobby-option p {
+                font-size: 0.9em;
+            }
+
+            /* Input fields - larger for mobile */
+            .input-group input {
+                font-size: 1.1em;
+                padding: 15px;
+                min-height: 50px;
+            }
+
+            /* Room code display - compact on mobile */
+            .room-code-display {
+                padding: 15px;
+            }
+
+            .room-code-display .code {
+                font-size: 2em;
+                letter-spacing: 3px;
+            }
+
+            .room-code-display p {
+                font-size: 0.9em;
+                margin-bottom: 5px;
+            }
+
+            /* Players grid - 2 columns on mobile */
             .players-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .player-slot {
+                padding: 15px 10px;
+            }
+
+            .player-position {
+                font-size: 1.2em;
+                margin-bottom: 5px;
+            }
+
+            .player-name {
+                font-size: 0.95em;
+            }
+
+            /* Waiting actions - stack buttons on small screens */
+            .waiting-actions {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .waiting-actions .btn {
+                width: 100%;
+                min-height: 50px;
             }
 
             /* Version badge - smaller on mobile */
@@ -853,6 +913,10 @@
                 font-size: 1.5em;
             }
 
+            .header p {
+                font-size: 0.85em;
+            }
+
             .card {
                 width: 40px;
                 height: 58px;
@@ -882,6 +946,41 @@
             .btn {
                 font-size: 1em;
                 padding: 12px 20px;
+            }
+
+            /* Lobby - extra compact on small phones */
+            .lobby-option {
+                padding: 15px 10px;
+            }
+
+            .lobby-option h3 {
+                font-size: 1.1em;
+            }
+
+            .lobby-option p {
+                font-size: 0.85em;
+            }
+
+            .room-code-display .code {
+                font-size: 1.7em;
+                letter-spacing: 2px;
+            }
+
+            /* Waiting room - smaller on small phones */
+            .waiting-header h2 {
+                font-size: 1.3em;
+            }
+
+            .player-slot {
+                padding: 10px 8px;
+            }
+
+            .player-position {
+                font-size: 1em;
+            }
+
+            .player-name {
+                font-size: 0.85em;
             }
         }
 

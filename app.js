@@ -911,15 +911,15 @@ function getCardDisplay(card) {
     if (card.isSpecial) {
         const symbols = {
             'One': '1',           // 소원 → 숫자 1
-            'Cat': '🐱',          // 개 → 고양이
-            'Joker': '🃏',        // 불사조 → 컬러조커
-            'Agni': 'AGNI_IMG',   // 용 → 불의 정령 아그니 (magician 이미지)
+            'Cat': '🐕',          // 고양이 → 강아지
+            'Joker': '🔥',        // 조커 → 봉황
+            'Agni': '🐉',         // 아그니 → 용
             // 구버전 호환
             'Mah Jong': '1',
-            'Dog': '🐱',
-            'Phoenix': '🃏',
-            'Dragon': 'AGNI_IMG', // 호랑이 → 아그니
-            'Tiger': 'AGNI_IMG'
+            'Dog': '🐕',
+            'Phoenix': '🔥',
+            'Dragon': '🐉',
+            'Tiger': '🐉'
         };
         return { display: symbols[card.name] || card.name, suit: 'special', cardName: card.name };
     }
@@ -938,12 +938,15 @@ function renderCard(card, clickable = false) {
     cardEl.className = `card ${color || 'special'}`;
 
     // Check if it's a special card and render accordingly
-    if (display === 'AGNI_IMG') {
-        // Agni card - fill entire card with image
-        cardEl.innerHTML = `<img src="magician.png" alt="Agni" style="width: 100%; height: 100%; object-fit: contain; border-radius: 4px;">`;
-    } else if (display === '🃏') {
-        // Joker card - big emoji, no suit symbols (scaled for smaller cards)
+    if (display === '🔥') {
+        // Phoenix/Joker card - big emoji, fill entire card (봉황)
         cardEl.innerHTML = `<div class="card-value" style="font-size: 3.5em; display: flex; align-items: center; justify-content: center; height: 100%;">${display}</div>`;
+    } else if (display === '🐉') {
+        // Dragon/Agni card - big emoji, fill entire card (용)
+        cardEl.innerHTML = `<div class="card-value" style="font-size: 3.5em; display: flex; align-items: center; justify-content: center; height: 100%;">${display}</div>`;
+    } else if (display === '🐕') {
+        // Dog/Cat card - big emoji, fill entire card (강아지)
+        cardEl.innerHTML = `<div class="card-value" style="font-size: 3em; display: flex; align-items: center; justify-content: center; height: 100%;">${display}</div>`;
     } else if (display === '1') {
         // Wish card (숫자 1) - big number with label (scaled for smaller cards)
         cardEl.innerHTML = `
@@ -952,9 +955,6 @@ function renderCard(card, clickable = false) {
                 <div style="font-size: 0.8em; margin-top: 3px;">소원</div>
             </div>
         `;
-    } else if (display === '🐱') {
-        // Cat card - big emoji, no suit symbols (scaled for smaller cards)
-        cardEl.innerHTML = `<div class="card-value" style="font-size: 3em; display: flex; align-items: center; justify-content: center; height: 100%;">${display}</div>`;
     } else {
         // Regular cards
         cardEl.innerHTML = `
