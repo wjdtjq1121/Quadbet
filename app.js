@@ -940,13 +940,13 @@ function renderCard(card, clickable = false) {
     // Check if it's a special card and render accordingly
     if (display === '🐦') {
         // Phoenix/Joker card - big emoji, fill entire card (파란새/불사조)
-        cardEl.innerHTML = `<div class="card-value" style="font-size: 3.5em; display: flex; align-items: center; justify-content: center; height: 100%;">${display}</div>`;
+        cardEl.innerHTML = `<div class="card-value" style="font-size: 2.8em; display: flex; align-items: center; justify-content: center; height: 100%;">${display}</div>`;
     } else if (display === '🐉') {
         // Dragon/Agni card - big emoji, fill entire card (용)
-        cardEl.innerHTML = `<div class="card-value" style="font-size: 3.5em; display: flex; align-items: center; justify-content: center; height: 100%;">${display}</div>`;
+        cardEl.innerHTML = `<div class="card-value" style="font-size: 2.8em; display: flex; align-items: center; justify-content: center; height: 100%;">${display}</div>`;
     } else if (display === '🐕') {
         // Dog/Cat card - big emoji, fill entire card (강아지)
-        cardEl.innerHTML = `<div class="card-value" style="font-size: 3em; display: flex; align-items: center; justify-content: center; height: 100%;">${display}</div>`;
+        cardEl.innerHTML = `<div class="card-value" style="font-size: 2.5em; display: flex; align-items: center; justify-content: center; height: 100%;">${display}</div>`;
     } else if (display === '1') {
         // Wish card (숫자 1) - big number with label (scaled for smaller cards)
         cardEl.innerHTML = `
