@@ -897,11 +897,11 @@ function checkAndTriggerBotPlay() {
         if (botTimers[currentPlayer]) {
             clearTimeout(botTimers[currentPlayer]);
         }
-        // Trigger bot play with a small delay
+        // Trigger bot play with a small delay (빠른 테스트용: 200ms)
         botTimers[currentPlayer] = setTimeout(() => {
             console.log('🎯 봇 플레이 타이머 실행됨');
             triggerBotPlay();
-        }, 800);
+        }, 200);
     } else {
         console.log('👤 사람 턴 - 봇 플레이 안 함');
     }
@@ -912,12 +912,12 @@ function getCardDisplay(card) {
         const symbols = {
             'One': '1',           // 소원 → 숫자 1
             'Cat': '🐕',          // 고양이 → 강아지
-            'Joker': '🔥',        // 조커 → 봉황
+            'Joker': '🦅',        // 조커 → 독수리 (불타는 새)
             'Agni': '🐉',         // 아그니 → 용
             // 구버전 호환
             'Mah Jong': '1',
             'Dog': '🐕',
-            'Phoenix': '🔥',
+            'Phoenix': '🦅',
             'Dragon': '🐉',
             'Tiger': '🐉'
         };
@@ -938,8 +938,8 @@ function renderCard(card, clickable = false) {
     cardEl.className = `card ${color || 'special'}`;
 
     // Check if it's a special card and render accordingly
-    if (display === '🔥') {
-        // Phoenix/Joker card - big emoji, fill entire card (봉황)
+    if (display === '🦅') {
+        // Phoenix/Joker card - big emoji, fill entire card (독수리/불타는 새)
         cardEl.innerHTML = `<div class="card-value" style="font-size: 3.5em; display: flex; align-items: center; justify-content: center; height: 100%;">${display}</div>`;
     } else if (display === '🐉') {
         // Dragon/Agni card - big emoji, fill entire card (용)
