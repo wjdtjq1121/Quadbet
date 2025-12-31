@@ -912,12 +912,12 @@ function getCardDisplay(card) {
         const symbols = {
             'One': '1',           // 소원 → 숫자 1
             'Cat': '🐕',          // 고양이 → 강아지
-            'Joker': '🐦',        // 조커 → 파란새 (불사조)
+            'Joker': '🔥',        // 조커 → 불 (불사조)
             'Agni': '🐉',         // 아그니 → 용
             // 구버전 호환
             'Mah Jong': '1',
             'Dog': '🐕',
-            'Phoenix': '🐦',
+            'Phoenix': '🔥',
             'Dragon': '🐉',
             'Tiger': '🐉'
         };
@@ -938,8 +938,8 @@ function renderCard(card, clickable = false) {
     cardEl.className = `card ${color || 'special'}`;
 
     // Check if it's a special card and render accordingly
-    if (display === '🐦') {
-        // Phoenix/Joker card - big emoji, fill entire card (파란새/불사조)
+    if (display === '🔥') {
+        // Phoenix/Joker card - big emoji, fill entire card (불/불사조)
         cardEl.innerHTML = `<div class="card-value" style="font-size: 2.8em; display: flex; align-items: center; justify-content: center; height: 100%;">${display}</div>`;
     } else if (display === '🐉') {
         // Dragon/Agni card - big emoji, fill entire card (용)
