@@ -1150,6 +1150,21 @@ function isValidPlay(newPlay, currentPlay) {
         return false;
     }
 
+    // Special rule: Phoenix/Joker cannot beat Dragon/Agni
+    if (newPlay.type === 'single' && currentPlay.type === 'single') {
+        const currentIsDragon = currentPlay.cards.some(c =>
+            c.isSpecial && (c.name === 'Agni' || c.name === 'Dragon' || c.name === 'Tiger')
+        );
+        const newIsPhoenix = newPlay.cards.some(c =>
+            c.isSpecial && (c.name === 'Joker' || c.name === 'Phoenix')
+        );
+
+        if (currentIsDragon && newIsPhoenix) {
+            console.log('❌ 봉황은 용을 이길 수 없습니다! 폭탄만 가능합니다.');
+            return false;
+        }
+    }
+
     const isValid = newPlay.value > currentPlay.value;
     console.log(`🔍 밸류 비교: new=${newPlay.value} vs current=${currentPlay.value}, 결과: ${isValid ? '✅' : '❌'}`);
     return isValid;
@@ -2188,6 +2203,11 @@ function findBotPlay(hand, currentPlay) {
 
         // Try single cards
         if (playType === 'single' && playLength === 1) {
+            // Check if current play is Dragon (cannot beat with Phoenix)
+            const currentIsDragon = currentPlay.cards.some(c =>
+                c.isSpecial && (c.name === 'Agni' || c.name === 'Dragon' || c.name === 'Tiger')
+            );
+
             // If wish is active, try wish card first
             if (mustFulfillWish) {
                 for (let card of hand) {
@@ -2196,13 +2216,15 @@ function findBotPlay(hand, currentPlay) {
                         return { type: 'single', value: card.value, cards: [card] };
                     }
                 }
-                // Try Joker - can be used as any value
-                for (let card of hand) {
-                    if (card.isSpecial && (card.name === 'Joker' || card.name === 'Phoenix')) {
-                        // Use joker with value higher than current play
-                        const jokerValue = Math.max(playValue + 1, gameState.wish || 0);
-                        console.log('🤖 봇: 조커로 소원 성취');
-                        return { type: 'single', value: jokerValue, cards: [card] };
+                // Try Joker - can be used as any value (but not against Dragon)
+                if (!currentIsDragon) {
+                    for (let card of hand) {
+                        if (card.isSpecial && (card.name === 'Joker' || card.name === 'Phoenix')) {
+                            // Use joker with value higher than current play
+                            const jokerValue = Math.max(playValue + 1, gameState.wish || 0);
+                            console.log('🤖 봇: 조커로 소원 성취');
+                            return { type: 'single', value: jokerValue, cards: [card] };
+                        }
                     }
                 }
             }
@@ -2214,14 +2236,18 @@ function findBotPlay(hand, currentPlay) {
                 }
             }
 
-            // If no regular card works, try Joker
-            for (let card of hand) {
-                if (card.isSpecial && (card.name === 'Joker' || card.name === 'Phoenix')) {
-                    // Use joker with value slightly higher than current play
-                    const jokerValue = playValue + 1;
-                    console.log('🤖 봇: 조커 사용 (value: ' + jokerValue + ')');
-                    return { type: 'single', value: jokerValue, cards: [card] };
+            // If no regular card works, try Joker (only if current play is NOT Dragon)
+            if (!currentIsDragon) {
+                for (let card of hand) {
+                    if (card.isSpecial && (card.name === 'Joker' || card.name === 'Phoenix')) {
+                        // Use joker with value slightly higher than current play
+                        const jokerValue = playValue + 1;
+                        console.log('🤖 봇: 조커 사용 (value: ' + jokerValue + ')');
+                        return { type: 'single', value: jokerValue, cards: [card] };
+                    }
                 }
+            } else {
+                console.log('🤖 봇: 용이 나와서 봉황을 사용할 수 없습니다');
             }
         }
 
