@@ -66,6 +66,7 @@ let currentRoom = {
 let roomListeners = [];
 let botPlayers = {}; // Track which players are bots
 let botTimers = {}; // Track bot play timers
+let autoPassPending = false; // Prevent duplicate auto-pass calls
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -665,7 +666,10 @@ function initializeGameState() {
             totalScores: { team1: 0, team2: 0 },
             roundActive: true,
             wish: null, // Mah Jong wish (숫자 1 소원)
-            cardsPlayed: { 0: false, 1: false, 2: false, 3: false } // Track if player has played a card
+            cardsPlayed: { 0: false, 1: false, 2: false, 3: false }, // Track if player has played a card
+            wonCards: { 0: [], 1: [], 2: [], 3: [] }, // Cards won by each player
+            currentTrickCards: [], // Cards currently on the table
+            lastPlayerToPlay: null // Last player who played cards (wins the trick)
         };
 
         console.log('✅ 게임 상태 초기화 완료');
@@ -747,6 +751,27 @@ function normalizeGameState(state) {
         }
     }
 
+    // Handle wonCards
+    if (!state.wonCards) {
+        state.wonCards = { 0: [], 1: [], 2: [], 3: [] };
+    } else {
+        for (let i = 0; i < 4; i++) {
+            if (!state.wonCards[i]) {
+                state.wonCards[i] = [];
+            }
+        }
+    }
+
+    // Handle currentTrickCards
+    if (!state.currentTrickCards) {
+        state.currentTrickCards = [];
+    }
+
+    // Handle lastPlayerToPlay
+    if (state.lastPlayerToPlay === undefined) {
+        state.lastPlayerToPlay = null;
+    }
+
     return state;
 }
 
@@ -809,6 +834,59 @@ function checkAndTriggerBotPlay() {
     }
 
     const currentPlayer = gameState.currentPlayer;
+    const currentHand = gameState.hands[currentPlayer];
+
+    // Check if current player has no cards left - auto pass
+    if (!currentHand || currentHand.length === 0) {
+        console.log(`⏭️ 플레이어 ${currentPlayer}는 카드가 없어서 자동 패스`);
+        // Make sure they're in finishedPlayers
+        if (!gameState.finishedPlayers.includes(currentPlayer)) {
+            gameState.finishedPlayers.push(currentPlayer);
+
+            // Check if a team has both players finished
+            if (checkTeamFinished()) {
+                console.log('🎊 라운드 종료! (한 팀 완료)');
+                endRound();
+                syncGameState();
+                return;
+            }
+        }
+        // Auto pass
+        gameState.consecutivePasses++;
+        const requiredPasses = getRequiredPasses();
+        if (gameState.consecutivePasses >= requiredPasses) {
+            console.log(`🧹 테이블 클리어! (${requiredPasses}연속 패스)`);
+
+            // Award trick to last player who played cards
+            if (gameState.lastPlayerToPlay !== null && gameState.currentTrickCards && gameState.currentTrickCards.length > 0) {
+                const winner = gameState.lastPlayerToPlay;
+                console.log(`🏆 플레이어 ${winner}가 트릭의 ${gameState.currentTrickCards.length}장 카드를 획득했습니다!`);
+
+                if (!gameState.wonCards) gameState.wonCards = { 0: [], 1: [], 2: [], 3: [] };
+                if (!gameState.wonCards[winner]) gameState.wonCards[winner] = [];
+
+                gameState.wonCards[winner].push(...gameState.currentTrickCards);
+
+                // Log cards won
+                const cardNames = gameState.currentTrickCards.map(c => {
+                    if (c.isSpecial) return c.name;
+                    const valueNames = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+                    return (valueNames[c.value] || c.value) + c.suit[0].toUpperCase();
+                }).join(', ');
+                console.log(`📥 획득한 카드: ${cardNames}`);
+            }
+
+            gameState.currentPlay = null;
+            gameState.consecutivePasses = 0;
+            gameState.wish = null;
+            gameState.currentTrickCards = [];
+            gameState.lastPlayerToPlay = null;
+        }
+        nextTurn();
+        syncGameState();
+        return;
+    }
+
     const isBot = botPlayers[currentPlayer];
 
     console.log(`🔍 턴 체크 - 플레이어 ${currentPlayer}, 봇: ${isBot ? 'O' : 'X'}, 라운드 활성: ${gameState.roundActive ? 'O' : 'X'}`);
@@ -859,28 +937,28 @@ function renderCard(card, clickable = false) {
     // Set card class - use 'special' for special cards, otherwise use color
     cardEl.className = `card ${color || 'special'}`;
 
-    // Check if it's the Agni card (magician image)
-    let displayHTML;
+    // Check if it's a special card and render accordingly
     if (display === 'AGNI_IMG') {
-        displayHTML = `<img src="magician.png" alt="Agni" style="width: 100%; height: 100%; object-fit: contain;">`;
-    } else {
-        displayHTML = display;
-    }
-
-    // Special styling for Joker card (make it bigger)
-    if (display === '🃏') {
-        cardEl.innerHTML = `
-            <div class="card-value" style="font-size: 4em; margin-top: 10px;">${displayHTML}</div>
-        `;
+        // Agni card - fill entire card with image
+        cardEl.innerHTML = `<img src="magician.png" alt="Agni" style="width: 100%; height: 100%; object-fit: contain; border-radius: 4px;">`;
+    } else if (display === '🃏') {
+        // Joker card - big emoji, no suit symbols (scaled for smaller cards)
+        cardEl.innerHTML = `<div class="card-value" style="font-size: 3.5em; display: flex; align-items: center; justify-content: center; height: 100%;">${display}</div>`;
     } else if (display === '1') {
-        // Special styling for Wish card (숫자 1) - make it visible
+        // Wish card (숫자 1) - big number with label (scaled for smaller cards)
         cardEl.innerHTML = `
-            <div class="card-value" style="font-size: 2.5em; font-weight: bold;">${displayHTML}</div>
-            <div class="card-suit" style="font-size: 0.8em;">소원</div>
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
+                <div class="card-value" style="font-size: 2.5em; font-weight: bold;">${display}</div>
+                <div style="font-size: 0.8em; margin-top: 3px;">소원</div>
+            </div>
         `;
+    } else if (display === '🐱') {
+        // Cat card - big emoji, no suit symbols (scaled for smaller cards)
+        cardEl.innerHTML = `<div class="card-value" style="font-size: 3em; display: flex; align-items: center; justify-content: center; height: 100%;">${display}</div>`;
     } else {
+        // Regular cards
         cardEl.innerHTML = `
-            <div class="card-value">${displayHTML}</div>
+            <div class="card-value">${display}</div>
             ${suit && suit !== 'special' ? `<div class="card-suit">${suit}</div>` : ''}
         `;
     }
@@ -912,8 +990,21 @@ function toggleCardSelection(card, cardEl) {
 function validateCombination(cards) {
     if (cards.length === 0) return null;
     if (cards.length === 1) {
-        console.log(`🃏 싱글 카드 검증: value=${cards[0].value}`);
-        return { type: 'single', value: cards[0].value, cards };
+        const card = cards[0];
+        console.log(`🃏 싱글 카드 검증:`, {
+            value: card.value,
+            isSpecial: card.isSpecial,
+            name: card.name
+        });
+
+        // Cat/Dog card cannot be played as a regular single
+        // It must be handled separately in playCards()
+        if (card.isSpecial && (card.name === 'Cat' || card.name === 'Dog')) {
+            console.error('❌ 고양이 카드는 일반 싱글로 낼 수 없습니다! (특수 처리 필요)');
+            return null;
+        }
+
+        return { type: 'single', value: card.value, cards };
     }
 
     // Check for pair
@@ -956,20 +1047,64 @@ function validateCombination(cards) {
 
     // Check for straight (5+ consecutive cards)
     if (cards.length >= 5) {
-        const sorted = [...cards].sort((a, b) => a.value - b.value);
-        let isConsecutive = true;
-        for (let i = 1; i < sorted.length; i++) {
-            if (sorted[i].value !== sorted[i-1].value + 1) {
-                isConsecutive = false;
-                break;
-            }
+        console.log('🎴 스트레이트 검증 시작:', cards.length, '장');
+
+        // Separate jokers from regular cards
+        const jokers = cards.filter(c => c.isSpecial && (c.name === 'Joker' || c.name === 'Phoenix'));
+        const regularCards = cards.filter(c => !c.isSpecial || (c.name !== 'Joker' && c.name !== 'Phoenix'));
+
+        console.log('  조커:', jokers.length, '장');
+        console.log('  일반 카드:', regularCards.length, '장');
+
+        // Sort regular cards by value
+        const sorted = [...regularCards].sort((a, b) => a.value - b.value);
+        console.log('  정렬된 카드:', sorted.map(c => c.value).join(', '));
+
+        if (sorted.length === 0 && jokers.length >= 5) {
+            // All jokers - invalid straight
+            console.log('❌ 조커만으로는 스트레이트 불가');
+            return null;
         }
-        if (isConsecutive) {
-            const sameSuit = sorted.every(card => !card.isSpecial && card.suit === sorted[0].suit);
-            if (sameSuit) {
-                return { type: 'bomb-straight', value: sorted[sorted.length - 1].value, cards };
+
+        // Calculate total gaps between consecutive cards
+        let totalGaps = 0;
+        for (let i = 1; i < sorted.length; i++) {
+            const gap = sorted[i].value - sorted[i-1].value - 1;
+            console.log(`  ${sorted[i-1].value} -> ${sorted[i].value}: gap ${gap}`);
+
+            if (gap < 0) {
+                // Duplicate values - not a valid straight
+                console.log('❌ 중복된 값 발견');
+                return null;
             }
-            return { type: 'straight', value: sorted[sorted.length - 1].value, cards };
+
+            totalGaps += gap;
+        }
+
+        console.log('  총 gap:', totalGaps, ', 필요한 조커:', totalGaps, ', 보유 조커:', jokers.length);
+
+        // Check if total length matches
+        const expectedLength = sorted.length + jokers.length;
+        const actualSpan = sorted[sorted.length - 1].value - sorted[0].value + 1;
+
+        console.log('  예상 길이:', expectedLength, ', 실제 범위:', actualSpan);
+
+        if (totalGaps === jokers.length && expectedLength === actualSpan) {
+            console.log('✅ 유효한 스트레이트!');
+            const highestValue = sorted[sorted.length - 1].value;
+
+            // Check if it's a straight flush (same suit + joker doesn't break it)
+            const nonJokerSuit = sorted.length > 0 ? sorted[0].suit : null;
+            const sameSuit = sorted.every(card => card.suit === nonJokerSuit);
+
+            if (sameSuit && nonJokerSuit) {
+                console.log('💣 스트레이트 플러시!');
+                return { type: 'bomb-straight', value: highestValue, cards };
+            }
+
+            return { type: 'straight', value: highestValue, cards };
+        } else {
+            console.log('❌ 조커가 부족하여 스트레이트 불가');
         }
     }
 
@@ -1071,76 +1206,46 @@ async function playCards() {
         return;
     }
 
-    const combination = validateCombination(selectedCards);
-    if (!combination) {
-        alert('유효하지 않은 조합입니다!');
-        return;
+    // Clear auto-pass flag (user is manually playing cards)
+    autoPassPending = false;
+
+    // Check if it's a Cat (Dog) card FIRST - before other validations
+    console.log('🔍 고양이 카드 체크 시작');
+    console.log('  선택된 카드 수:', selectedCards.length);
+    if (selectedCards.length === 1) {
+        const card = selectedCards[0];
+        console.log('  카드 정보:', {
+            isSpecial: card.isSpecial,
+            name: card.name,
+            value: card.value
+        });
     }
 
-    // Check if it's a bomb - bombs can be played anytime!
-    const isBombPlay = isBomb(combination);
-
-    if (isBombPlay) {
-        console.log('💣 폭탄 감지! 언제든지 낼 수 있습니다.');
-
-        // Check if it can beat the current bomb (if any)
-        if (gameState.currentPlay && isBomb(gameState.currentPlay)) {
-            if (!isValidPlay(combination, gameState.currentPlay)) {
-                alert('현재 폭탄보다 더 강한 폭탄을 내야 합니다!');
-                return;
-            }
-        }
-    } else {
-        // Not a bomb - normal turn checking
-        if (!isMyTurn()) {
-            alert('당신의 차례가 아닙니다! (폭탄만 언제든지 낼 수 있습니다)');
-            return;
-        }
-
-        console.log('🎴 카드 내기 시도:', combination.type, '현재 플레이:', gameState.currentPlay ? gameState.currentPlay.type : 'null (새 트릭)');
-
-        // Check if there's an active wish that must be fulfilled
-        if (gameState.wish) {
-            const myHand = gameState.hands[currentRoom.playerPosition];
-            const hasWish = hasWishCard(myHand, gameState.wish);
-            const containsWish = combinationContainsWish(combination, gameState.wish);
-
-            if (hasWish && !containsWish) {
-                const valueNames = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
-                const wishName = valueNames[gameState.wish] || gameState.wish;
-                alert(`소원 카드(${wishName})가 손에 있으면 반드시 포함시켜야 합니다!`);
-                return;
-            }
-
-            if (containsWish) {
-                console.log('✅ 소원 카드 포함됨! 소원이 성취되었습니다.');
-            }
-        }
-
-        if (!isValidPlay(combination, gameState.currentPlay)) {
-            if (gameState.currentPlay) {
-                alert(`현재 플레이(${gameState.currentPlay.type})보다 높은 카드를 내야 합니다!`);
-            } else {
-                alert('유효하지 않은 플레이입니다!');
-            }
-            return;
-        }
-
-        console.log('✅ 유효한 플레이!');
-    }
-
-    // Check if it's a Cat (Dog) card
     const isCat = selectedCards.length === 1 && selectedCards[0].isSpecial &&
                   (selectedCards[0].name === 'Cat' || selectedCards[0].name === 'Dog');
 
+    console.log('  고양이 카드 여부:', isCat);
+
     if (isCat) {
-        console.log('🐱 고양이 카드! 파트너에게 턴 전달');
+        console.log('🐱 고양이 카드 감지! 파트너에게 턴 전달');
+        console.log('  현재 플레이:', gameState.currentPlay);
+        console.log('  내 턴:', isMyTurn());
 
         // Only allowed when leading a new trick
         if (gameState.currentPlay !== null) {
+            console.error('❌ 고양이는 새 트릭에서만 가능 (현재 플레이:', gameState.currentPlay.type, ')');
             alert('고양이는 새로운 트릭을 시작할 때만 낼 수 있습니다!');
             return;
         }
+
+        // Must be my turn
+        if (!isMyTurn()) {
+            console.error('❌ 내 턴이 아님');
+            alert('당신의 차례가 아닙니다!');
+            return;
+        }
+
+        console.log('✅ 고양이 카드 검증 통과!');
 
         // Remove cat from hand
         const myHand = gameState.hands[currentRoom.playerPosition];
@@ -1184,7 +1289,83 @@ async function playCards() {
         return;
     }
 
-    // Normal card play
+    // ========== Normal card play (not Cat) ==========
+
+    console.log('🎴 일반 카드 플레이 시도:', selectedCards.length, '장');
+    console.log('🎴 선택된 카드:', selectedCards.map(c => {
+        if (c.isSpecial) return c.name;
+        return `${c.value}${c.suit[0]}`;
+    }).join(', '));
+
+    // Validate combination
+    const combination = validateCombination(selectedCards);
+    if (!combination) {
+        console.error('❌ 유효하지 않은 조합!');
+        alert('유효하지 않은 조합입니다!');
+        return;
+    }
+
+    console.log('✅ 유효한 조합:', combination.type, 'value:', combination.value);
+
+    // Check if it's a bomb - bombs can be played anytime!
+    const isBombPlay = isBomb(combination);
+
+    if (isBombPlay) {
+        console.log('💣 폭탄 감지! 언제든지 낼 수 있습니다.');
+
+        // Check if it can beat the current bomb (if any)
+        if (gameState.currentPlay && isBomb(gameState.currentPlay)) {
+            if (!isValidPlay(combination, gameState.currentPlay)) {
+                alert('현재 폭탄보다 더 강한 폭탄을 내야 합니다!');
+                return;
+            }
+        }
+    } else {
+        // Not a bomb - normal turn checking
+        if (!isMyTurn()) {
+            alert('당신의 차례가 아닙니다! (폭탄만 언제든지 낼 수 있습니다)');
+            return;
+        }
+
+        console.log('🎴 카드 내기 시도:', combination.type, '현재 플레이:', gameState.currentPlay ? gameState.currentPlay.type : 'null (새 트릭)');
+
+        // Check if there's an active wish that must be fulfilled
+        if (gameState.wish) {
+            const myHand = gameState.hands[currentRoom.playerPosition];
+            const hasWish = hasWishCard(myHand, gameState.wish);
+            const containsWish = combinationContainsWish(combination, gameState.wish);
+
+            if (hasWish && !containsWish) {
+                const valueNames = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+                const wishName = valueNames[gameState.wish] || gameState.wish;
+                alert(`소원 카드(${wishName})가 손에 있으면 반드시 포함시켜야 합니다!`);
+                return;
+            }
+
+            if (containsWish) {
+                console.log('✅ 소원 카드 포함됨! 소원이 성취되었습니다.');
+            }
+        }
+
+        const validPlay = isValidPlay(combination, gameState.currentPlay);
+        console.log('🔍 isValidPlay 결과:', validPlay);
+        console.log('🔍 현재 플레이:', gameState.currentPlay ? `${gameState.currentPlay.type} (value: ${gameState.currentPlay.value})` : 'null');
+        console.log('🔍 내 조합:', `${combination.type} (value: ${combination.value})`);
+
+        if (!validPlay) {
+            if (gameState.currentPlay) {
+                console.error(`❌ 현재 플레이보다 낮음: ${combination.value} <= ${gameState.currentPlay.value}`);
+                alert(`현재 플레이(${gameState.currentPlay.type})보다 높은 카드를 내야 합니다!`);
+            } else {
+                console.error('❌ 유효하지 않은 플레이 (이유 불명)');
+                alert('유효하지 않은 플레이입니다!');
+            }
+            return;
+        }
+
+        console.log('✅ 유효한 플레이!');
+    }
+
     // Check if Wish card (숫자 1) is played - ask for wish
     if (containsMahJong(selectedCards)) {
         console.log('🎴 소원(숫자 1) 카드 발견! 소원을 빌 수 있습니다.');
@@ -1201,6 +1382,11 @@ async function playCards() {
         }
     }
 
+    // Add cards to current trick
+    if (!gameState.currentTrickCards) gameState.currentTrickCards = [];
+    gameState.currentTrickCards.push(...selectedCards);
+    console.log(`📥 트릭에 카드 추가: ${selectedCards.length}장 (총 ${gameState.currentTrickCards.length}장)`);
+
     // Remove cards from hand
     const myHand = gameState.hands[currentRoom.playerPosition];
     selectedCards.forEach(card => {
@@ -1213,6 +1399,7 @@ async function playCards() {
 
     // Update game state
     gameState.currentPlay = combination;
+    gameState.lastPlayerToPlay = currentRoom.playerPosition;
     gameState.consecutivePasses = 0;
     console.log('🔄 연속 패스 카운터 리셋: 0');
 
@@ -1291,7 +1478,16 @@ function passTurn() {
         return;
     }
 
-    console.log('👋 패스!');
+    console.log('👋 패스 호출');
+    console.log('  선택된 카드:', selectedCards.length, '장');
+
+    // Clear auto-pass flag
+    autoPassPending = false;
+
+    // IMPORTANT: Clear selected cards FIRST before any logic
+    selectedCards.length = 0; // Clear array in-place
+    console.log('  ✅ 선택 카드 초기화 완료');
+
     gameState.consecutivePasses++;
 
     const requiredPasses = getRequiredPasses();
@@ -1299,9 +1495,31 @@ function passTurn() {
 
     if (gameState.consecutivePasses >= requiredPasses) {
         console.log(`🧹 테이블 클리어! (${requiredPasses}연속 패스) - 새로운 조합을 낼 수 있습니다!`);
+
+        // Award trick to last player who played cards
+        if (gameState.lastPlayerToPlay !== null && gameState.currentTrickCards && gameState.currentTrickCards.length > 0) {
+            const winner = gameState.lastPlayerToPlay;
+            console.log(`🏆 플레이어 ${winner}가 트릭의 ${gameState.currentTrickCards.length}장 카드를 획득했습니다!`);
+
+            if (!gameState.wonCards) gameState.wonCards = { 0: [], 1: [], 2: [], 3: [] };
+            if (!gameState.wonCards[winner]) gameState.wonCards[winner] = [];
+
+            gameState.wonCards[winner].push(...gameState.currentTrickCards);
+
+            // Log cards won
+            const cardNames = gameState.currentTrickCards.map(c => {
+                if (c.isSpecial) return c.name;
+                const valueNames = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+                return (valueNames[c.value] || c.value) + c.suit[0].toUpperCase();
+            }).join(', ');
+            console.log(`📥 획득한 카드: ${cardNames}`);
+        }
+
         gameState.currentPlay = null;
         gameState.consecutivePasses = 0;
         gameState.wish = null; // Clear wish when table is cleared
+        gameState.currentTrickCards = []; // Clear trick cards
+        gameState.lastPlayerToPlay = null;
         console.log('✨ 소원도 클리어되었습니다.');
     }
 
@@ -1323,6 +1541,9 @@ function nextTurn() {
             break;
         }
     } while (gameState.finishedPlayers && gameState.finishedPlayers.includes(gameState.currentPlayer));
+
+    // Reset auto-pass flag when turn changes
+    autoPassPending = false;
 
     console.log(`⏭️ nextTurn: ${startPlayer} → ${gameState.currentPlayer}`);
 }
@@ -1353,81 +1574,158 @@ function syncGameState() {
 function endRound() {
     gameState.roundActive = false;
 
-    // Calculate scores (simplified)
+    console.log('');
+    console.log('╔════════════════════════════════════════════════════════════╗');
+    console.log('║          🎊 라운드 종료 - 점수 계산 시작 🎊               ║');
+    console.log('╚════════════════════════════════════════════════════════════╝');
+    console.log('');
+
+    const positionNames = ['남(0)', '서(1)', '북(2)', '동(3)'];
+
+    // Initialize won cards if missing
+    if (!gameState.wonCards) {
+        gameState.wonCards = { 0: [], 1: [], 2: [], 3: [] };
+    }
+
+    // Calculate card points for each player
+    let team1CardPoints = 0;
+    let team2CardPoints = 0;
+
+    console.log('📊 각 플레이어가 획득한 카드 점수:');
+    console.log('─────────────────────────────────────────────────────');
+
+    for (let i = 0; i < 4; i++) {
+        const wonCards = gameState.wonCards[i] || [];
+        let playerPoints = 0;
+        let cardDetails = [];
+
+        wonCards.forEach(card => {
+            if (card.points !== undefined && card.points !== 0) {
+                playerPoints += card.points;
+                const cardName = card.isSpecial ? card.name :
+                    (card.value === 11 ? 'J' : card.value === 12 ? 'Q' : card.value === 13 ? 'K' : card.value === 14 ? 'A' : card.value);
+                cardDetails.push(`${cardName}(${card.points > 0 ? '+' : ''}${card.points})`);
+            }
+        });
+
+        const team = i % 2 === 0 ? 'team1' : 'team2';
+        if (team === 'team1') {
+            team1CardPoints += playerPoints;
+        } else {
+            team2CardPoints += playerPoints;
+        }
+
+        console.log(`  ${positionNames[i]}: ${wonCards.length}장 획득, ${playerPoints > 0 ? '+' : ''}${playerPoints}점`);
+        if (cardDetails.length > 0) {
+            console.log(`    점수 카드: ${cardDetails.join(', ')}`);
+        }
+    }
+
+    console.log('');
+    console.log('🏁 완료 순서:');
+    console.log('─────────────────────────────────────────────────────');
+    gameState.finishedPlayers.forEach((player, index) => {
+        console.log(`  ${index + 1}등: ${positionNames[player]}`);
+    });
+
+    // Initialize score calculation
     let team1Points = 0;
     let team2Points = 0;
 
-    // Check for one-two finish
+    // Check for one-two finish (1-2등 독식)
+    let oneTwoFinish = false;
     if (gameState.finishedPlayers.length >= 2) {
         const first = gameState.finishedPlayers[0];
         const second = gameState.finishedPlayers[1];
 
-        if (first % 2 === second % 2) {
-            if (first % 2 === 0) {
-                team1Points = 200;
-            } else {
-                team2Points = 200;
-            }
+        // Team 1: players 0 and 2 (남, 북)
+        // Team 2: players 1 and 3 (서, 동)
+        const team1 = [0, 2];
+        const team2 = [1, 3];
+
+        if (team1.includes(first) && team1.includes(second)) {
+            console.log('');
+            console.log('🎉 1-2등 독식! 팀 1 (남-북)이 1-2등을 차지했습니다!');
+            team1Points = 200;
+            oneTwoFinish = true;
+        } else if (team2.includes(first) && team2.includes(second)) {
+            console.log('');
+            console.log('🎉 1-2등 독식! 팀 2 (서-동)이 1-2등을 차지했습니다!');
+            team2Points = 200;
+            oneTwoFinish = true;
         }
     }
 
+    // If not one-two finish, use card points
+    if (!oneTwoFinish) {
+        console.log('');
+        console.log('📊 카드 점수 합산:');
+        console.log(`  팀 1 (남-북): ${team1CardPoints > 0 ? '+' : ''}${team1CardPoints}점`);
+        console.log(`  팀 2 (서-동): ${team2CardPoints > 0 ? '+' : ''}${team2CardPoints}점`);
+        team1Points = team1CardPoints;
+        team2Points = team2CardPoints;
+    }
+
     // Calculate betting bonuses/penalties
+    console.log('');
+    console.log('🎲 베팅 결과:');
+    console.log('─────────────────────────────────────────────────────');
+
+    let hasBetting = false;
     if (gameState.bettingCalls && gameState.finishedPlayers.length > 0) {
         const firstPlayer = gameState.finishedPlayers[0];
 
         for (let i = 0; i < 4; i++) {
             const bet = gameState.bettingCalls[i];
             if (bet) {
+                hasBetting = true;
                 const isWinner = (i === firstPlayer);
                 const team = i % 2 === 0 ? 'team1' : 'team2';
+                const betName = bet === 'grand' ? '그랜드 베팅' : '쿼드 베팅';
+                const points = bet === 'grand' ? 200 : 100;
 
-                if (bet === 'grand') {
-                    // Grand Betting: ±200 points
-                    if (isWinner) {
-                        console.log(`✅ 플레이어 ${i}: 그랜드 베팅 성공! +200점`);
-                        if (team === 'team1') {
-                            team1Points += 200;
-                        } else {
-                            team2Points += 200;
-                        }
+                if (isWinner) {
+                    console.log(`  ✅ ${positionNames[i]}: ${betName} 성공! +${points}점`);
+                    if (team === 'team1') {
+                        team1Points += points;
                     } else {
-                        console.log(`❌ 플레이어 ${i}: 그랜드 베팅 실패! -200점`);
-                        if (team === 'team1') {
-                            team1Points -= 200;
-                        } else {
-                            team2Points -= 200;
-                        }
+                        team2Points += points;
                     }
-                } else if (bet === 'quad') {
-                    // Quad Betting: ±100 points
-                    if (isWinner) {
-                        console.log(`✅ 플레이어 ${i}: 쿼드 베팅 성공! +100점`);
-                        if (team === 'team1') {
-                            team1Points += 100;
-                        } else {
-                            team2Points += 100;
-                        }
+                } else {
+                    console.log(`  ❌ ${positionNames[i]}: ${betName} 실패! -${points}점`);
+                    if (team === 'team1') {
+                        team1Points -= points;
                     } else {
-                        console.log(`❌ 플레이어 ${i}: 쿼드 베팅 실패! -100점`);
-                        if (team === 'team1') {
-                            team1Points -= 100;
-                        } else {
-                            team2Points -= 100;
-                        }
+                        team2Points -= points;
                     }
                 }
             }
         }
     }
 
+    if (!hasBetting) {
+        console.log('  (베팅 없음)');
+    }
+
+    // Update total scores
     gameState.totalScores.team1 += team1Points;
     gameState.totalScores.team2 += team2Points;
 
-    console.log(`📊 라운드 종료 점수 - 팀1: +${team1Points}, 팀2: +${team2Points}`);
-    console.log(`🏆 총점 - 팀1: ${gameState.totalScores.team1}, 팀2: ${gameState.totalScores.team2}`);
+    console.log('');
+    console.log('═══════════════════════════════════════════════════════');
+    console.log(`📊 이번 라운드 점수:`);
+    console.log(`   팀 1 (남-북): ${team1Points > 0 ? '+' : ''}${team1Points}점`);
+    console.log(`   팀 2 (서-동): ${team2Points > 0 ? '+' : ''}${team2Points}점`);
+    console.log('═══════════════════════════════════════════════════════');
+    console.log(`🏆 현재 총점:`);
+    console.log(`   팀 1 (남-북): ${gameState.totalScores.team1}점`);
+    console.log(`   팀 2 (서-동): ${gameState.totalScores.team2}점`);
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('');
 
     if (gameState.totalScores.team1 >= 1000 || gameState.totalScores.team2 >= 1000) {
-        const winner = gameState.totalScores.team1 > gameState.totalScores.team2 ? '팀 1' : '팀 2';
+        const winner = gameState.totalScores.team1 > gameState.totalScores.team2 ? '팀 1 (남-북)' : '팀 2 (서-동)';
+        console.log(`🎊🎊🎊 게임 종료! ${winner} 승리! 🎊🎊🎊`);
         alert(`게임 종료! ${winner} 승리!`);
     }
 }
@@ -1479,6 +1777,16 @@ function renderGame() {
                             console.error('카드 렌더링 에러:', err, card);
                         }
                     });
+
+                    // Clean up selectedCards - remove cards that are no longer in hand
+                    const cleanedCards = selectedCards.filter(selectedCard =>
+                        hand.some(handCard => JSON.stringify(handCard) === JSON.stringify(selectedCard))
+                    );
+
+                    if (cleanedCards.length !== selectedCards.length) {
+                        console.log(`🧹 선택 카드 정리: ${selectedCards.length} → ${cleanedCards.length}장`);
+                        selectedCards = cleanedCards;
+                    }
                 } else {
                     // Show other players' cards (for debugging - not clickable)
                     hand.forEach(card => {
@@ -1607,8 +1915,25 @@ function renderGame() {
         const btnPass = document.getElementById('btn-pass');
         const btnBetting = document.getElementById('btn-tichu'); // Using same button
 
-        if (btnPlay) btnPlay.disabled = !isMyTurn() || !gameState.roundActive;
-        if (btnPass) btnPass.disabled = !isMyTurn() || !gameState.roundActive;
+        // Check if current player (me) has no cards left
+        const myHand = gameState.hands[currentRoom.playerPosition];
+        const hasNoCards = !myHand || myHand.length === 0;
+
+        if (hasNoCards && isMyTurn() && gameState.roundActive && !autoPassPending) {
+            // Auto pass if I have no cards
+            console.log('🎴 내 카드가 없어서 자동 패스 예약');
+            autoPassPending = true;
+            setTimeout(() => {
+                if (autoPassPending) {
+                    console.log('🎴 자동 패스 실행');
+                    autoPassPending = false;
+                    passTurn();
+                }
+            }, 500); // Small delay for visual clarity
+        }
+
+        if (btnPlay) btnPlay.disabled = !isMyTurn() || !gameState.roundActive || hasNoCards;
+        if (btnPass) btnPass.disabled = !isMyTurn() || !gameState.roundActive || hasNoCards;
 
         // Bomb button is always enabled during active round (can play bombs anytime)
         if (btnBomb) {
@@ -1816,7 +2141,8 @@ function findBotPlay(hand, currentPlay) {
             // Try to find combinations (prefer triple > pair > single)
             // Try triple first
             for (let i = 0; i < hand.length - 2; i++) {
-                if (hand[i].value === hand[i + 1].value && hand[i + 1].value === hand[i + 2].value) {
+                if (!hand[i].isSpecial && !hand[i + 1].isSpecial && !hand[i + 2].isSpecial &&
+                    hand[i].value === hand[i + 1].value && hand[i + 1].value === hand[i + 2].value) {
                     console.log('🤖 봇: 트리플 발견!');
                     return { type: 'triple', value: hand[i].value, cards: [hand[i], hand[i + 1], hand[i + 2]] };
                 }
@@ -1824,17 +2150,30 @@ function findBotPlay(hand, currentPlay) {
 
             // Try pair next
             for (let i = 0; i < hand.length - 1; i++) {
-                if (hand[i].value === hand[i + 1].value) {
+                if (!hand[i].isSpecial && !hand[i + 1].isSpecial &&
+                    hand[i].value === hand[i + 1].value) {
                     console.log('🤖 봇: 페어 발견!');
                     return { type: 'pair', value: hand[i].value, cards: [hand[i], hand[i + 1]] };
                 }
             }
 
-            // Finally play single lowest card
+            // Finally play single lowest non-special card (avoid wasting special cards at start)
+            for (let i = 0; i < hand.length; i++) {
+                if (!hand[i].isSpecial && hand[i].value !== undefined) {
+                    console.log('🤖 봇: 싱글 카드 (value: ' + hand[i].value + ')');
+                    return { type: 'single', value: hand[i].value, cards: [hand[i]] };
+                }
+            }
+
+            // If only special cards left, play the first available one
             if (hand[0] && hand[0].value !== undefined) {
-                return { type: 'single', value: hand[0].value, cards: [hand[0]] };
+                const card = hand[0];
+                // For special cards, use appropriate value
+                const value = card.isSpecial && (card.name === 'Joker' || card.name === 'Phoenix') ? 2 : card.value;
+                console.log('🤖 봇: 특수 카드 싱글 (value: ' + value + ')');
+                return { type: 'single', value: value, cards: [card] };
             } else {
-                console.error('❌ findBotPlay: 첫 번째 카드가 유효하지 않습니다', hand[0]);
+                console.error('❌ findBotPlay: 유효한 카드가 없습니다', hand[0]);
                 return null;
             }
         }
@@ -1857,19 +2196,31 @@ function findBotPlay(hand, currentPlay) {
                         return { type: 'single', value: card.value, cards: [card] };
                     }
                 }
-                // Try Joker
+                // Try Joker - can be used as any value
                 for (let card of hand) {
-                    if (card.isSpecial && (card.name === 'Joker' || card.name === 'Phoenix') && card.value > playValue) {
+                    if (card.isSpecial && (card.name === 'Joker' || card.name === 'Phoenix')) {
+                        // Use joker with value higher than current play
+                        const jokerValue = Math.max(playValue + 1, gameState.wish || 0);
                         console.log('🤖 봇: 조커로 소원 성취');
-                        return { type: 'single', value: card.value, cards: [card] };
+                        return { type: 'single', value: jokerValue, cards: [card] };
                     }
                 }
             }
 
-            // Normal play
+            // Normal play - try regular cards first
             for (let card of hand) {
-                if (card.value > playValue) {
+                if (!card.isSpecial && card.value > playValue) {
                     return { type: 'single', value: card.value, cards: [card] };
+                }
+            }
+
+            // If no regular card works, try Joker
+            for (let card of hand) {
+                if (card.isSpecial && (card.name === 'Joker' || card.name === 'Phoenix')) {
+                    // Use joker with value slightly higher than current play
+                    const jokerValue = playValue + 1;
+                    console.log('🤖 봇: 조커 사용 (value: ' + jokerValue + ')');
+                    return { type: 'single', value: jokerValue, cards: [card] };
                 }
             }
         }
@@ -1965,11 +2316,17 @@ function playBotCards(botPosition, combination) {
 
         console.log(`📉 봇 손패: ${originalLength} → ${botHand.length}`);
 
+        // Add cards to current trick
+        if (!gameState.currentTrickCards) gameState.currentTrickCards = [];
+        gameState.currentTrickCards.push(...combination.cards);
+        console.log(`📥 봇 트릭에 카드 추가: ${combination.cards.length}장 (총 ${gameState.currentTrickCards.length}장)`);
+
         // Mark that this bot has played a card (disables grand betting)
         gameState.cardsPlayed[botPosition] = true;
 
         // Update game state
         gameState.currentPlay = combination;
+        gameState.lastPlayerToPlay = botPosition;
         gameState.consecutivePasses = 0;
 
         // Clear wish if it was fulfilled
@@ -2027,9 +2384,31 @@ function passBotTurn(botPosition) {
 
         if (gameState.consecutivePasses >= requiredPasses) {
             console.log(`🧹 테이블 클리어! (${requiredPasses}연속 패스) - 새로운 조합을 낼 수 있습니다!`);
+
+            // Award trick to last player who played cards
+            if (gameState.lastPlayerToPlay !== null && gameState.currentTrickCards && gameState.currentTrickCards.length > 0) {
+                const winner = gameState.lastPlayerToPlay;
+                console.log(`🏆 플레이어 ${winner}가 트릭의 ${gameState.currentTrickCards.length}장 카드를 획득했습니다!`);
+
+                if (!gameState.wonCards) gameState.wonCards = { 0: [], 1: [], 2: [], 3: [] };
+                if (!gameState.wonCards[winner]) gameState.wonCards[winner] = [];
+
+                gameState.wonCards[winner].push(...gameState.currentTrickCards);
+
+                // Log cards won
+                const cardNames = gameState.currentTrickCards.map(c => {
+                    if (c.isSpecial) return c.name;
+                    const valueNames = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+                    return (valueNames[c.value] || c.value) + c.suit[0].toUpperCase();
+                }).join(', ');
+                console.log(`📥 획득한 카드: ${cardNames}`);
+            }
+
             gameState.currentPlay = null;
             gameState.consecutivePasses = 0;
             gameState.wish = null; // Clear wish when table is cleared
+            gameState.currentTrickCards = []; // Clear trick cards
+            gameState.lastPlayerToPlay = null;
             console.log('✨ 소원도 클리어되었습니다.');
         }
 

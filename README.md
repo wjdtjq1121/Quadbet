@@ -4,7 +4,9 @@
 
 **라이브 데모:** https://wjdtjq1121.github.io/Quadbet/
 
-**현재 버전:** v1.1.2
+**현재 버전:** v1.7.3
+
+📱 **모바일 앱 지원:** iOS & Android PWA (앱스토어/플레이스토어 출시 준비 완료)
 
 ---
 
@@ -60,6 +62,26 @@ deploy.bat
 
 ---
 
+## 🎨 앱 아이콘 생성 (PWA 필수!)
+
+PWA로 작동하려면 **앱 아이콘이 필요합니다**. 아직 생성하지 않았다면:
+
+### 🌐 온라인 도구로 5분 만에 생성 (가장 쉬움!)
+
+1. **SVG → PNG 변환**
+   - https://svgtopng.com/ 접속
+   - `icon-template.svg` 업로드
+   - 512x512 크기로 다운로드
+
+2. **모든 크기 자동 생성**
+   - https://realfavicongenerator.net/ 접속
+   - 512x512 PNG 업로드
+   - 생성된 아이콘 다운로드 및 프로젝트 폴더에 복사
+
+**자세한 가이드:** [ICONS_README.md](ICONS_README.md)
+
+---
+
 ## 🚀 사용 방법
 
 ### 1. 게임 시작
@@ -83,12 +105,44 @@ deploy.bat
 
 ## 🎮 주요 기능
 
+### 게임 기능
 - ✅ 실시간 멀티플레이어 (4인)
 - ✅ 방 생성 및 참가 (6자리 코드)
 - ✅ AI 봇 플레이어 (테스트용)
-- ✅ 티추 선언 시스템
+- ✅ 베팅 시스템 (그랜드/쿼드)
 - ✅ 점수 계산 및 승리 조건
-- ✅ 반응형 UI (모바일 지원)
+- ✅ 소원 시스템, 폭탄, 특수 카드
+
+### 모바일 최적화 (NEW! 🔥)
+- ✅ PWA (Progressive Web App) 지원
+- ✅ 완전한 반응형 디자인 (태블릿/폰)
+- ✅ 터치 최적화 UI
+- ✅ 오프라인 지원 (Service Worker)
+- ✅ 홈 화면 추가 가능
+- ✅ 앱처럼 실행 (전체화면)
+- ✅ iOS/Android 앱스토어 출시 준비 완료
+
+---
+
+## 📱 모바일 앱으로 설치하기
+
+### iOS (iPhone/iPad)
+1. Safari에서 게임 접속
+2. 공유 버튼 탭 (⬆️)
+3. "홈 화면에 추가" 선택
+4. "추가" 탭
+5. 홈 화면에서 앱처럼 실행!
+
+### Android
+1. Chrome에서 게임 접속
+2. 메뉴(⋮) → "홈 화면에 추가"
+3. "설치" 또는 "추가" 탭
+4. 앱 서랍에서 Quadbet 실행!
+
+### 앱스토어/플레이스토어 출시
+현재 PWA로 완성되었으며, 앱스토어 출시를 준비 중입니다!
+
+**출시 가이드:** [MOBILE_APP_GUIDE.md](MOBILE_APP_GUIDE.md)
 
 ---
 
@@ -123,13 +177,21 @@ deploy.bat
 
 ```
 Quadbet/
-├── index.html           # 메인 멀티플레이어 페이지
-├── Quadbet.html         # 싱글플레이어 페이지
-├── app.js               # 게임 로직 & Firebase 연동
-├── test.html            # 디버깅 테스트 페이지
-├── FIREBASE_SETUP.md    # Firebase 상세 설정 가이드
-├── claude.md            # 개발 문서
-└── README.md            # 이 파일
+├── index.html              # 메인 멀티플레이어 페이지
+├── app.js                  # 게임 로직 & Firebase 연동
+├── manifest.json           # PWA 매니페스트
+├── sw.js                   # Service Worker (오프라인 지원)
+├── magician.png            # 아그니 카드 이미지
+├── icon-template.svg       # 아이콘 SVG 템플릿
+├── icon-*.png              # 앱 아이콘 (72px ~ 512px) ⚠️ 생성 필요!
+├── create-icons.sh         # 아이콘 생성 스크립트 (Bash)
+├── create-icons.ps1        # 아이콘 생성 스크립트 (PowerShell)
+├── ICONS_README.md         # 아이콘 생성 빠른 가이드
+├── MOBILE_APP_GUIDE.md     # 앱스토어 출시 가이드
+├── ICON_CREATION.md        # 아이콘 생성 상세 가이드
+├── FIREBASE_SETUP.md       # Firebase 상세 설정 가이드
+├── CLAUDE.md               # 개발 문서
+└── README.md               # 이 파일
 ```
 
 ---
@@ -138,7 +200,9 @@ Quadbet/
 
 - **Frontend:** HTML5, CSS3, JavaScript (ES6+)
 - **Backend:** Firebase Realtime Database
-- **Hosting:** GitHub Pages
+- **Hosting:** GitHub Pages / Firebase Hosting
+- **PWA:** Service Worker, Web App Manifest
+- **Mobile:** 반응형 디자인, Touch 최적화
 - **게임 로직:** 티추 카드 게임 규칙
 
 ---
@@ -157,23 +221,35 @@ Quadbet/
 
 ## 📝 버전 히스토리
 
-**v1.1.2** (2025-12-30)
-- 전역 에러 핸들러 추가
-- 상세 디버깅 로그
-- 테스트 페이지 추가
+**v1.7.3** (2025-12-31) - 📱 모바일 앱 릴리즈
+- **PWA 완전 구현**
+  - Service Worker (오프라인 지원)
+  - Web App Manifest
+  - 홈 화면 추가 기능
+- **모바일 UI 최적화**
+  - 완전 반응형 디자인
+  - 터치 최적화
+  - 세로/가로 모드 지원
+  - 하단 고정 컨트롤 바
+- **조커 스트레이트 버그 수정**
+- **카드 크기 최적화** (모바일: 45x65px)
+- **앱스토어/플레이스토어 출시 준비 완료**
 
-**v1.1.1** (2025-12-30)
-- Firebase 연결 디버깅
-- 보안 규칙 가이드 추가
+**v1.7.0** (2025-12-30)
+- 베팅 시스템 개편
+- 봇 AI 개선
+- 폭탄 시스템 구현
 
-**v1.1.0** (2025-12-30)
-- 봇 플레이어 자동 참가 기능
-- AI 자동 플레이
+**v1.6.0** (2025-12-30)
+- 소원(숫자 1) 기능 완전 구현
+- UI 개선
 
 **v1.0.0** (2025-12-30)
 - 초기 릴리즈
 - 멀티플레이어 기능
 - 기본 게임 로직
+
+전체 버전 히스토리: [CLAUDE.md](CLAUDE.md) 참고
 
 ---
 

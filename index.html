@@ -2,8 +2,14 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>티추 (Tichu) - 온라인 멀티플레이어</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#667eea">
+    <meta name="description" content="Quadbet - 4인 온라인 티추 카드 게임">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>Quadbet - 티추 게임</title>
     <style>
         * {
             margin: 0;
@@ -414,17 +420,17 @@
                 ". top ."
                 "left center right"
                 ". bottom .";
-            grid-template-columns: 250px 1fr 250px;
-            grid-template-rows: 150px 1fr 250px;
-            gap: 20px;
-            min-height: 600px;
+            grid-template-columns: 230px 1fr 230px;
+            grid-template-rows: 120px 1fr 200px;
+            gap: 15px;
+            min-height: 550px;
         }
 
         .player {
-            padding: 15px;
+            padding: 10px;
             background: #f8f9fa;
-            border-radius: 10px;
-            border: 3px solid transparent;
+            border-radius: 8px;
+            border: 2px solid transparent;
         }
 
         .player.active {
@@ -478,9 +484,9 @@
             justify-content: center;
             align-items: center;
             background: #2c3e50;
-            border-radius: 15px;
-            padding: 30px;
-            min-height: 300px;
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 250px;
         }
 
         .current-play {
@@ -495,18 +501,18 @@
 
         .played-cards {
             display: flex;
-            gap: 10px;
+            gap: 6px;
             flex-wrap: wrap;
             justify-content: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .card {
-            width: 70px;
-            height: 100px;
+            width: 55px;
+            height: 80px;
             background: white;
             border: 2px solid #333;
-            border-radius: 8px;
+            border-radius: 6px;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -540,21 +546,21 @@
         }
 
         .card-value {
-            font-size: 1.8em;
+            font-size: 1.5em;
             font-weight: bold;
         }
 
         .card-suit {
-            font-size: 1.2em;
-            margin-top: 5px;
+            font-size: 1em;
+            margin-top: 3px;
         }
 
         .player-hand {
             display: flex;
-            gap: 8px;
+            gap: 5px;
             flex-wrap: wrap;
             justify-content: center;
-            margin-top: 10px;
+            margin-top: 8px;
         }
 
         .game-controls {
@@ -661,6 +667,263 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
             z-index: 9999;
             border: 2px solid #667eea;
+        }
+
+        /* ==================== MOBILE OPTIMIZATION ==================== */
+        @media (max-width: 768px) {
+            body {
+                padding: 0;
+                overflow-x: hidden;
+            }
+
+            .container {
+                border-radius: 0;
+                box-shadow: none;
+                min-height: 100vh;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .header p {
+                font-size: 1em;
+            }
+
+            /* Game board - stack vertically on mobile */
+            .players-area {
+                grid-template-areas:
+                    "top"
+                    "center"
+                    "bottom";
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr;
+                gap: 8px;
+                min-height: auto;
+                padding: 5px;
+            }
+
+            .player-left, .player-right {
+                display: none; /* Hide side players on mobile */
+            }
+
+            .player-top, .player-bottom {
+                padding: 8px;
+            }
+
+            .center-area {
+                min-height: 180px;
+                padding: 12px;
+            }
+
+            /* Smaller cards on mobile */
+            .card {
+                width: 45px;
+                height: 65px;
+                border-radius: 4px;
+            }
+
+            .card-value {
+                font-size: 1.2em;
+            }
+
+            .card-suit {
+                font-size: 0.8em;
+            }
+
+            .player-hand {
+                gap: 3px;
+                margin-top: 5px;
+            }
+
+            .played-cards {
+                gap: 4px;
+            }
+
+            /* Touch-friendly buttons */
+            .btn {
+                padding: 15px 30px;
+                font-size: 1.1em;
+                min-height: 50px;
+                touch-action: manipulation;
+            }
+
+            .game-controls {
+                padding: 12px;
+                gap: 10px;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                border-top: 2px solid #ddd;
+                z-index: 100;
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .game-controls .btn {
+                padding: 12px;
+                font-size: 0.95em;
+            }
+
+            .game-board {
+                padding: 10px;
+                padding-bottom: 140px; /* Space for fixed controls */
+            }
+
+            /* Menu buttons */
+            .menu-buttons {
+                gap: 15px;
+            }
+
+            /* Lobby options - stack on mobile */
+            .lobby-options {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            /* Players grid */
+            .players-grid {
+                grid-template-columns: 1fr;
+            }
+
+            /* Version badge - smaller on mobile */
+            .version-badge {
+                top: 10px;
+                right: 10px;
+                padding: 5px 10px;
+                font-size: 0.75em;
+            }
+
+            /* Special card adjustments for mobile */
+            .card .card-value[style*="3.5em"] {
+                font-size: 2.5em !important;
+            }
+
+            .card .card-value[style*="2.5em"] {
+                font-size: 1.8em !important;
+            }
+
+            .card .card-value[style*="3em"] {
+                font-size: 2em !important;
+            }
+
+            /* Modal adjustments */
+            .modal-content {
+                max-width: 90%;
+                padding: 20px;
+            }
+
+            .wish-buttons {
+                grid-template-columns: repeat(3, 1fr) !important;
+            }
+
+            /* Reduce padding everywhere */
+            .menu-container {
+                padding: 30px 20px;
+            }
+
+            .lobby-container {
+                padding: 20px;
+            }
+
+            .waiting-container {
+                padding: 20px;
+            }
+
+            .howto-container {
+                padding: 20px;
+            }
+
+            /* Score board */
+            .score-board {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .team-score .score {
+                font-size: 1.5em;
+            }
+        }
+
+        /* Extra small devices (phones in portrait, less than 576px) */
+        @media (max-width: 576px) {
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .card {
+                width: 40px;
+                height: 58px;
+            }
+
+            .card-value {
+                font-size: 1em;
+            }
+
+            .card-suit {
+                font-size: 0.7em;
+            }
+
+            .player-hand {
+                gap: 2px;
+            }
+
+            .game-controls {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .game-controls .btn {
+                padding: 10px 8px;
+                font-size: 0.85em;
+            }
+
+            .btn {
+                font-size: 1em;
+                padding: 12px 20px;
+            }
+        }
+
+        /* Landscape mode optimization */
+        @media (max-width: 896px) and (orientation: landscape) {
+            .game-board {
+                padding: 5px;
+                padding-bottom: 100px;
+            }
+
+            .center-area {
+                min-height: 120px;
+                padding: 8px;
+            }
+
+            .player-top, .player-bottom {
+                padding: 5px;
+            }
+
+            .game-controls {
+                padding: 8px;
+            }
+
+            .game-controls .btn {
+                padding: 8px;
+                font-size: 0.8em;
+            }
+        }
+
+        /* Prevent text selection on touch devices */
+        @media (hover: none) {
+            * {
+                -webkit-tap-highlight-color: transparent;
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                user-select: none;
+            }
+
+            input, textarea {
+                -webkit-user-select: text;
+                user-select: text;
+            }
         }
     </style>
 </head>
@@ -1005,5 +1268,84 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <script src="app.js"></script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+        // Register service worker for PWA functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('✅ Service Worker registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.error('❌ Service Worker registration failed:', error);
+                    });
+            });
+        }
+
+        // Install prompt for mobile
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('💾 Install prompt available');
+            e.preventDefault();
+            deferredPrompt = e;
+
+            // Show install button (you can add a UI button here)
+            // For now, we'll auto-prompt after 30 seconds if not installed
+            setTimeout(() => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then((choiceResult) => {
+                        if (choiceResult.outcome === 'accepted') {
+                            console.log('✅ User accepted the install prompt');
+                        } else {
+                            console.log('❌ User dismissed the install prompt');
+                        }
+                        deferredPrompt = null;
+                    });
+                }
+            }, 30000);
+        });
+
+        // Handle app installation
+        window.addEventListener('appinstalled', () => {
+            console.log('✅ PWA installed successfully');
+            deferredPrompt = null;
+        });
+
+        // Prevent pull-to-refresh on mobile
+        document.body.addEventListener('touchmove', (e) => {
+            if (e.target === document.body) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        // Prevent double-tap zoom
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+
+        // Screen orientation handling
+        if (screen.orientation) {
+            screen.orientation.addEventListener('change', () => {
+                console.log('Screen orientation changed to', screen.orientation.type);
+            });
+        }
+
+        // Viewport height fix for mobile browsers (address bar issue)
+        function setVH() {
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        }
+        setVH();
+        window.addEventListener('resize', setVH);
+        window.addEventListener('orientationchange', setVH);
+    </script>
 </body>
 </html>
