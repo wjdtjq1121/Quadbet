@@ -888,20 +888,25 @@
             }
             
             .game-log-section, .score-log-section {
-                position: fixed;
+                position: fixed !important;
                 left: 0;
                 right: 0;
-                z-index: 99;
+                z-index: 999 !important;
                 max-height: 120px;
                 padding: 10px;
+                background: rgba(248, 249, 250, 0.98) !important;
+                backdrop-filter: blur(5px);
+                border-top: 2px solid #ddd;
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
             }
             
             .game-log-section {
-                bottom: 180px; /* Above score log */
+                bottom: 180px !important; /* Above score log */
             }
             
             .score-log-section {
-                bottom: 60px; /* Above controls */
+                bottom: 60px !important; /* Above controls */
+                background: rgba(255, 255, 255, 0.98) !important;
             }
 
             /* Menu buttons */

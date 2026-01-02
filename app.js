@@ -1155,11 +1155,11 @@ function checkAndTriggerBotPlay() {
         if (botTimers[currentPlayer]) {
             clearTimeout(botTimers[currentPlayer]);
         }
-        // Trigger bot play with a small delay (빠른 테스트용: 200ms)
+        // Trigger bot play with a very small delay (매우 빠른 테스트용: 50ms)
         botTimers[currentPlayer] = setTimeout(() => {
             console.log('🎯 봇 플레이 타이머 실행됨');
             triggerBotPlay();
-        }, 200);
+        }, 50);
     } else {
         console.log('👤 사람 턴 - 봇 플레이 안 함');
     }
@@ -1432,9 +1432,9 @@ function isValidPlay(newPlay, currentPlay, playerHandSize = null) {
     console.log(`🔍 비교 상세: ${newPlay.value} > ${currentPlay.value} = ${isValid}`);
     console.log(`🔍 값 타입 체크: new type=${typeof newPlay.value}, current type=${typeof currentPlay.value}`);
     
-    // Special case for testing - if user has only 1 card left, be more lenient
-    if (!isValid && playerHandSize === 1) {
-        console.log('🚨 마지막 카드 특별 규칙: 같은 값도 허용');
+    // Special case for testing - if user is playing their last card(s), be more lenient
+    if (!isValid && playerHandSize === 0) {
+        console.log('🚨 마지막 카드 특별 규칙: 같은 값도 허용 (플레이 후 손패 0장)');
         return newPlay.value >= currentPlay.value;
     }
     
@@ -1657,8 +1657,10 @@ async function playCards() {
         }
 
         const myHand = gameState.hands[currentRoom.playerPosition];
-        const myHandSize = myHand ? myHand.length : 0;
-        const validPlay = isValidPlay(combination, gameState.currentPlay, myHandSize);
+        // Calculate hand size AFTER playing the selected cards
+        const myHandSizeAfterPlay = myHand ? myHand.length - selectedCards.length : 0;
+        const validPlay = isValidPlay(combination, gameState.currentPlay, myHandSizeAfterPlay);
+        console.log('🔍 플레이 후 손패 수:', myHandSizeAfterPlay);
         console.log('🔍 isValidPlay 결과:', validPlay);
         console.log('🔍 내 손패 수:', myHandSize);
         console.log('🔍 현재 플레이:', gameState.currentPlay ? `${gameState.currentPlay.type} (value: ${gameState.currentPlay.value}, type: ${typeof gameState.currentPlay.value})` : 'null');
