@@ -851,23 +851,26 @@
             }
 
             .game-action-buttons {
-                position: fixed;
-                bottom: 380px; /* Above game logs */
-                left: 50%;
-                transform: translateX(-50%);
+                /* Keep default position on mobile - not fixed */
+                position: static;
                 background: rgba(255, 255, 255, 0.95);
-                border-radius: 25px;
+                border-radius: 15px;
                 box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
                 backdrop-filter: blur(10px);
-                margin: 0;
+                margin: 15px auto;
                 padding: 15px 20px;
-                z-index: 200;
+                max-width: 300px;
             }
             
             .game-action-buttons .btn {
                 padding: 12px 20px;
                 font-size: 1em;
                 min-width: 110px;
+            }
+            
+            .game-board {
+                padding: 10px;
+                padding-bottom: 420px; /* Space for logs at bottom */
             }
 
             .game-controls .btn {
