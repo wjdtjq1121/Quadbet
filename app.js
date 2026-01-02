@@ -46,24 +46,22 @@ window.onerror = function(message, source, lineno, colno, error) {
 
 console.log('=== app.js 로드 시작 ===');
 
-// Quick action button event listeners
+// Game action button event listeners
 document.addEventListener('DOMContentLoaded', function() {
-    // Connect quick action buttons to main functions
-    const playQuickBtn = document.getElementById('btn-play-quick');
-    const passQuickBtn = document.getElementById('btn-pass-quick');
+    // Connect main game action buttons
+    const playMainBtn = document.getElementById('btn-play-main');
+    const passMainBtn = document.getElementById('btn-pass-main');
     
-    if (playQuickBtn) {
-        playQuickBtn.addEventListener('click', function() {
-            // Call the same function as main play button
+    if (playMainBtn) {
+        playMainBtn.addEventListener('click', function() {
             if (window.playCards) {
                 window.playCards();
             }
         });
     }
     
-    if (passQuickBtn) {
-        passQuickBtn.addEventListener('click', function() {
-            // Call the same function as main pass button
+    if (passMainBtn) {
+        passMainBtn.addEventListener('click', function() {
             if (window.passTurn) {
                 window.passTurn();
             }
@@ -285,53 +283,71 @@ async function startDeveloperMode() {
         
         console.log('✅ 개발자 닉네임 설정:', currentUser.nickname);
         
-        // Go to lobby screen
-        document.getElementById('lobby-player-name').textContent = `👤 ${currentUser.nickname}`;
-        showScreen('lobby-screen');
-        startListeningToRooms();
-        
-        // Wait a bit for UI to settle
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Create room automatically
-        const roomCode = generateRoomCode();
-        console.log('🏠 자동 방 생성:', roomCode);
-        
-        const roomData = {
-            code: roomCode,
-            host: currentUser.id,
-            players: {
-                0: { id: currentUser.id, nickname: currentUser.nickname, ready: false }
-            },
-            gameState: null,
-            createdAt: Date.now()
-        };
-        
-        await database.ref(`rooms/${roomCode}`).set(roomData);
-        
-        // Join the room
-        currentRoom.code = roomCode;
+        // Set room info
+        currentRoom.code = 'DEV001';
         currentRoom.isHost = true;
         currentRoom.playerPosition = 0;
         
-        showScreen('waiting-screen');
-        document.getElementById('waiting-room-code').textContent = roomCode;
+        // Create mock room data with bots
+        const mockRoom = {
+            code: 'DEV001',
+            host: currentUser.id,
+            players: {
+                0: { id: currentUser.id, nickname: currentUser.nickname, ready: true },
+                1: { id: generateBotId(), nickname: '🤖 알파봇', ready: true, isBot: true },
+                2: { id: generateBotId(), nickname: '🤖 베타봇', ready: true, isBot: true },
+                3: { id: generateBotId(), nickname: '🤖 감마봇', ready: true, isBot: true }
+            },
+            gameState: null
+        };
         
-        // Wait for room to be set up
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // Store room reference for logging
+        window.currentGameRoom = mockRoom;
         
-        // Fill with bots automatically
-        console.log('🤖 자동으로 봇 추가 시작');
-        await fillWithBots();
+        // Initialize bot tracking
+        botPlayers = {
+            1: mockRoom.players[1],
+            2: mockRoom.players[2],
+            3: mockRoom.players[3]
+        };
         
-        // Wait for bots to be added
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Go directly to game screen
+        showScreen('game-screen');
         
-        // Start game automatically
-        console.log('🎮 자동 게임 시작');
-        await startGame();
+        // Initialize game state
+        console.log('🎮 게임 상태 초기화...');
+        gameState = initializeGameState();
+        gameState.round.active = true;
         
-        console.log('✅ 개발자 모드 완료!');
+        // Deal cards
+        const deck = createDeck();
+        const shuffledDeck = shuffleDeck(deck);
+        
+        for (let i = 0; i < 4; i++) {
+            gameState.hands[i] = shuffledDeck.slice(i * 14, (i + 1) * 14);
+        }
+        
+        // Find starting player (who has Mah Jong/숫자 1)
+        gameState.currentPlayer = 0; // Default to player for testing
+        for (let i = 0; i < 4; i++) {
+            const hasMahJong = gameState.hands[i].some(card => 
+                card.isSpecial && (card.name === 'One' || card.name === 'Mah Jong')
+            );
+            if (hasMahJong) {
+                gameState.currentPlayer = i;
+                break;
+            }
+        }
+        
+        console.log('🎯 시작 플레이어:', gameState.currentPlayer);
+        
+        // Initialize game log
+        initializeGameLog();
+        
+        // Render the game
+        renderGame();
+        
+        console.log('✅ 개발자 모드 완료! 게임이 시작되었습니다.');
         
     } catch (error) {
         console.error('❌ 개발자 모드 실패:', error);
@@ -1415,8 +1431,22 @@ function isValidPlay(newPlay, currentPlay) {
         }
     }
 
-    const isValid = newPlay.value >= currentPlay.value;
+    // For testing: Allow same value (>=)
+    // NOTE: In strict Tichu rules, only higher values (>) are usually allowed
+    const isValid = newPlay.value > currentPlay.value;
     console.log(`🔍 밸류 비교: new=${newPlay.value} vs current=${currentPlay.value}, 결과: ${isValid ? '✅' : '❌'}`);
+    console.log(`🔍 비교 상세: ${newPlay.value} > ${currentPlay.value} = ${isValid}`);
+    console.log(`🔍 값 타입 체크: new type=${typeof newPlay.value}, current type=${typeof currentPlay.value}`);
+    
+    // Special case for testing - if user has only 1 card left, be more lenient
+    if (!isValid && selectedCards && selectedCards.length > 0) {
+        const myHand = gameState?.hands?.[currentRoom?.playerPosition];
+        if (myHand && myHand.length === 1) {
+            console.log('🚨 마지막 카드 특별 규칙: 같은 값도 허용');
+            return newPlay.value >= currentPlay.value;
+        }
+    }
+    
     return isValid;
 }
 
@@ -1774,6 +1804,18 @@ function passTurn() {
         if (c.isSpecial) return c.name;
         return `${c.value}${c.suit[0]}`;
     }).join(', '));
+
+    // CRITICAL: Check if user accidentally selected cards when trying to pass
+    if (selectedCards.length > 0) {
+        console.warn('⚠️ 패스하려고 하는데 카드가 선택되어 있습니다!');
+        console.warn('⚠️ 선택된 카드들:', selectedCards);
+        
+        // Clear selected cards visually
+        const allCards = document.querySelectorAll('.card');
+        allCards.forEach(card => {
+            card.classList.remove('selected');
+        });
+    }
 
     // Clear auto-pass flag
     autoPassPending = false;
