@@ -46,6 +46,31 @@ window.onerror = function(message, source, lineno, colno, error) {
 
 console.log('=== app.js 로드 시작 ===');
 
+// Quick action button event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Connect quick action buttons to main functions
+    const playQuickBtn = document.getElementById('btn-play-quick');
+    const passQuickBtn = document.getElementById('btn-pass-quick');
+    
+    if (playQuickBtn) {
+        playQuickBtn.addEventListener('click', function() {
+            // Call the same function as main play button
+            if (window.playCards) {
+                window.playCards();
+            }
+        });
+    }
+    
+    if (passQuickBtn) {
+        passQuickBtn.addEventListener('click', function() {
+            // Call the same function as main pass button
+            if (window.passTurn) {
+                window.passTurn();
+            }
+        });
+    }
+});
+
 // Firebase configuration
 const firebaseConfig = {
     apiKey: "AIzaSyA2jz0vIq-bxyxHaYU7L_mrYgWC0Du5A1U",
@@ -99,17 +124,17 @@ let autoPassPending = false; // Prevent duplicate auto-pass calls
 // ==================== GAME LOG FUNCTIONS ====================
 
 // Initialize game log
+let gameLogInitialized = false;
 function initializeGameLog() {
     const logElement = document.getElementById('game-log');
-    if (logElement) {
-        // Check if log is already initialized (has entries)
+    if (logElement && !gameLogInitialized) {
+        // Only initialize once per page load
         const existingEntries = logElement.querySelectorAll('.log-entry');
         if (existingEntries.length === 0) {
             logElement.innerHTML = '<div class="log-entry">게임이 시작되었습니다.</div>';
-        } else {
-            // Add new game start entry without clearing existing logs
-            addGameLog('새로운 게임이 시작되었습니다.', 'action');
         }
+        gameLogInitialized = true;
+        console.log('✅ 게임 로그 초기화 완료');
     }
 }
 
@@ -248,7 +273,73 @@ function generateBotName() {
     return botNames[Math.floor(Math.random() * botNames.length)];
 }
 
-// ==================== NICKNAME SCREEN ====================
+// ==================== DEVELOPER MODE ====================
+
+async function startDeveloperMode() {
+    console.log('🚀 개발자 모드 시작!');
+    
+    try {
+        // Set automatic nickname
+        currentUser.nickname = 'Dev_' + Math.random().toString(36).substr(2, 5);
+        currentUser.id = generateUserId();
+        
+        console.log('✅ 개발자 닉네임 설정:', currentUser.nickname);
+        
+        // Go to lobby screen
+        document.getElementById('lobby-player-name').textContent = `👤 ${currentUser.nickname}`;
+        showScreen('lobby-screen');
+        startListeningToRooms();
+        
+        // Wait a bit for UI to settle
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Create room automatically
+        const roomCode = generateRoomCode();
+        console.log('🏠 자동 방 생성:', roomCode);
+        
+        const roomData = {
+            code: roomCode,
+            host: currentUser.id,
+            players: {
+                0: { id: currentUser.id, nickname: currentUser.nickname, ready: false }
+            },
+            gameState: null,
+            createdAt: Date.now()
+        };
+        
+        await database.ref(`rooms/${roomCode}`).set(roomData);
+        
+        // Join the room
+        currentRoom.code = roomCode;
+        currentRoom.isHost = true;
+        currentRoom.playerPosition = 0;
+        
+        showScreen('waiting-screen');
+        document.getElementById('waiting-room-code').textContent = roomCode;
+        
+        // Wait for room to be set up
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Fill with bots automatically
+        console.log('🤖 자동으로 봇 추가 시작');
+        await fillWithBots();
+        
+        // Wait for bots to be added
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Start game automatically
+        console.log('🎮 자동 게임 시작');
+        await startGame();
+        
+        console.log('✅ 개발자 모드 완료!');
+        
+    } catch (error) {
+        console.error('❌ 개발자 모드 실패:', error);
+        alert('개발자 모드 실행 중 오류가 발생했습니다: ' + error.message);
+    }
+}
+
+// ==================== NICKNAME SCREEN ===================="
 
 // Load saved nickname on page load
 window.addEventListener('DOMContentLoaded', () => {
@@ -1375,6 +1466,8 @@ function isBomb(combination) {
 }
 
 async function playCards() {
+    // Make function globally accessible
+    window.playCards = playCards;
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('🎴 playCards() 호출됨');
     console.log('  selectedCards 길이:', selectedCards.length);
@@ -1408,23 +1501,33 @@ async function playCards() {
                   (selectedCards[0].name === 'Cat' || selectedCards[0].name === 'Dog');
 
     console.log('  고양이 카드 여부:', isCat);
+    if (selectedCards.length === 1) {
+        console.log('  선택된 카드 상세 정보:');
+        console.log('    - isSpecial:', selectedCards[0].isSpecial);
+        console.log('    - name:', selectedCards[0].name);
+        console.log('    - value:', selectedCards[0].value);
+        console.log('    - Cat 체크:', selectedCards[0].name === 'Cat');
+        console.log('    - Dog 체크:', selectedCards[0].name === 'Dog');
+    }
 
     if (isCat) {
         console.log('🐱 고양이 카드 감지! 파트너에게 턴 전달');
         console.log('  현재 플레이:', gameState.currentPlay);
         console.log('  내 턴:', isMyTurn());
+        console.log('  현재 플레이어:', gameState.currentPlayer);
+        console.log('  내 위치:', currentRoom.playerPosition);
 
-        // Only allowed when leading a new trick
-        if (gameState.currentPlay !== null) {
-            console.error('❌ 고양이는 새 트릭에서만 가능 (현재 플레이:', gameState.currentPlay.type, ')');
-            alert('고양이는 새로운 트릭을 시작할 때만 낼 수 있습니다!');
-            return;
-        }
-
-        // Must be my turn
+        // Must be my turn first
         if (!isMyTurn()) {
             console.error('❌ 내 턴이 아님');
             alert('당신의 차례가 아닙니다!');
+            return;
+        }
+
+        // Only allowed when leading a new trick (currentPlay is null)
+        if (gameState.currentPlay !== null) {
+            console.error('❌ 고양이는 새 트릭에서만 가능 (현재 플레이:', gameState.currentPlay.type, ')');
+            alert('고양이는 새로운 트릭을 시작할 때만 낼 수 있습니다!\n(다른 플레이어가 이미 카드를 냈습니다)');
             return;
         }
 
@@ -1659,6 +1762,8 @@ function getRequiredPasses() {
 }
 
 function passTurn() {
+    // Make function globally accessible
+    window.passTurn = passTurn;
     if (!isMyTurn()) {
         alert('당신의 차례가 아닙니다!');
         return;
