@@ -1385,7 +1385,7 @@ function validateCombination(cards) {
     return null;
 }
 
-function isValidPlay(newPlay, currentPlay) {
+function isValidPlay(newPlay, currentPlay, playerHandSize = null) {
     if (!currentPlay) return newPlay !== null;
 
     // Bombs can be played on anything
@@ -1428,12 +1428,9 @@ function isValidPlay(newPlay, currentPlay) {
     console.log(`🔍 값 타입 체크: new type=${typeof newPlay.value}, current type=${typeof currentPlay.value}`);
     
     // Special case for testing - if user has only 1 card left, be more lenient
-    if (!isValid && selectedCards && selectedCards.length > 0) {
-        const myHand = gameState?.hands?.[currentRoom?.playerPosition];
-        if (myHand && myHand.length === 1) {
-            console.log('🚨 마지막 카드 특별 규칙: 같은 값도 허용');
-            return newPlay.value >= currentPlay.value;
-        }
+    if (!isValid && playerHandSize === 1) {
+        console.log('🚨 마지막 카드 특별 규칙: 같은 값도 허용');
+        return newPlay.value >= currentPlay.value;
     }
     
     return isValid;
@@ -1620,7 +1617,9 @@ async function playCards() {
 
         // Check if it can beat the current bomb (if any)
         if (gameState.currentPlay && isBomb(gameState.currentPlay)) {
-            if (!isValidPlay(combination, gameState.currentPlay)) {
+            const myHand = gameState.hands[currentRoom.playerPosition];
+            const myHandSize = myHand ? myHand.length : 0;
+            if (!isValidPlay(combination, gameState.currentPlay, myHandSize)) {
                 alert('현재 폭탄보다 더 강한 폭탄을 내야 합니다!');
                 return;
             }
@@ -1652,8 +1651,11 @@ async function playCards() {
             }
         }
 
-        const validPlay = isValidPlay(combination, gameState.currentPlay);
+        const myHand = gameState.hands[currentRoom.playerPosition];
+        const myHandSize = myHand ? myHand.length : 0;
+        const validPlay = isValidPlay(combination, gameState.currentPlay, myHandSize);
         console.log('🔍 isValidPlay 결과:', validPlay);
+        console.log('🔍 내 손패 수:', myHandSize);
         console.log('🔍 현재 플레이:', gameState.currentPlay ? `${gameState.currentPlay.type} (value: ${gameState.currentPlay.value}, type: ${typeof gameState.currentPlay.value})` : 'null');
         console.log('🔍 내 조합:', `${combination.type} (value: ${combination.value}, type: ${typeof combination.value})`);
 
