@@ -1622,9 +1622,9 @@ async function playCards() {
 
         // Check if it can beat the current bomb (if any)
         if (gameState.currentPlay && isBomb(gameState.currentPlay)) {
-            const myHand = gameState.hands[currentRoom.playerPosition];
-            const myHandSize = myHand ? myHand.length : 0;
-            if (!isValidPlay(combination, gameState.currentPlay, myHandSize)) {
+            const myHandForBomb = gameState.hands[currentRoom.playerPosition];
+            const myHandSizeForBomb = myHandForBomb ? myHandForBomb.length - selectedCards.length : 0;
+            if (!isValidPlay(combination, gameState.currentPlay, myHandSizeForBomb)) {
                 alert('현재 폭탄보다 더 강한 폭탄을 내야 합니다!');
                 return;
             }
@@ -1657,12 +1657,13 @@ async function playCards() {
         }
 
         const myHand = gameState.hands[currentRoom.playerPosition];
+        const myHandSize = myHand ? myHand.length : 0;
         // Calculate hand size AFTER playing the selected cards
         const myHandSizeAfterPlay = myHand ? myHand.length - selectedCards.length : 0;
         const validPlay = isValidPlay(combination, gameState.currentPlay, myHandSizeAfterPlay);
+        console.log('🔍 현재 손패 수:', myHandSize);
         console.log('🔍 플레이 후 손패 수:', myHandSizeAfterPlay);
         console.log('🔍 isValidPlay 결과:', validPlay);
-        console.log('🔍 내 손패 수:', myHandSize);
         console.log('🔍 현재 플레이:', gameState.currentPlay ? `${gameState.currentPlay.type} (value: ${gameState.currentPlay.value}, type: ${typeof gameState.currentPlay.value})` : 'null');
         console.log('🔍 내 조합:', `${combination.type} (value: ${combination.value}, type: ${typeof combination.value})`);
 
