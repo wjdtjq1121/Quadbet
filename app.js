@@ -1,5 +1,30 @@
-// Global error handler
+// Global error handler with rate limiting
+let lastErrorTime = 0;
+let errorCount = 0;
+const ERROR_LIMIT_MS = 1000; // 1 second
+const MAX_ERRORS_PER_MINUTE = 10;
+
 window.onerror = function(message, source, lineno, colno, error) {
+    const now = Date.now();
+    
+    // Rate limit error messages to prevent spam
+    if (now - lastErrorTime < ERROR_LIMIT_MS) {
+        errorCount++;
+        if (errorCount > MAX_ERRORS_PER_MINUTE) {
+            console.warn('⚠️ 너무 많은 에러가 발생하여 메시지를 억제합니다.');
+            return true; // Suppress error
+        }
+    } else {
+        errorCount = 0;
+    }
+    lastErrorTime = now;
+    
+    // Ignore generic "Script error" messages
+    if (message === 'Script error.' && !source) {
+        console.warn('⚠️ 일반적인 Script error 무시됨');
+        return true;
+    }
+    
     console.error('============ 전역 에러 발생 ============');
     console.error('메시지:', message);
     console.error('파일:', source);
@@ -10,10 +35,13 @@ window.onerror = function(message, source, lineno, colno, error) {
     }
     console.error('=====================================');
 
-    // Show more detailed error message
-    const errorMsg = error ? (error.message || message) : message;
-    alert('에러 발생: ' + errorMsg + '\n\n콘솔(F12)에서 자세한 내용을 확인하세요.');
-    return false;
+    // Don't show alert for frequent errors
+    if (errorCount === 0) {
+        const errorMsg = error ? (error.message || message) : message;
+        console.error('에러 발생:', errorMsg);
+    }
+    
+    return true; // Prevent default browser error handling
 };
 
 console.log('=== app.js 로드 시작 ===');
@@ -74,7 +102,14 @@ let autoPassPending = false; // Prevent duplicate auto-pass calls
 function initializeGameLog() {
     const logElement = document.getElementById('game-log');
     if (logElement) {
-        logElement.innerHTML = '<div class="log-entry">게임이 시작되었습니다.</div>';
+        // Check if log is already initialized (has entries)
+        const existingEntries = logElement.querySelectorAll('.log-entry');
+        if (existingEntries.length === 0) {
+            logElement.innerHTML = '<div class="log-entry">게임이 시작되었습니다.</div>';
+        } else {
+            // Add new game start entry without clearing existing logs
+            addGameLog('새로운 게임이 시작되었습니다.', 'action');
+        }
     }
 }
 
@@ -90,9 +125,9 @@ function addGameLog(message, type = 'normal') {
     logElement.appendChild(entry);
     logElement.scrollTop = logElement.scrollHeight; // Auto scroll to bottom
     
-    // Keep only last 20 entries
+    // Keep only last 50 entries (increased for better history)
     const entries = logElement.querySelectorAll('.log-entry');
-    if (entries.length > 20) {
+    if (entries.length > 50) {
         entries[0].remove();
     }
 }
@@ -1289,7 +1324,7 @@ function isValidPlay(newPlay, currentPlay) {
         }
     }
 
-    const isValid = newPlay.value > currentPlay.value;
+    const isValid = newPlay.value >= currentPlay.value;
     console.log(`🔍 밸류 비교: new=${newPlay.value} vs current=${currentPlay.value}, 결과: ${isValid ? '✅' : '❌'}`);
     return isValid;
 }
@@ -1399,7 +1434,7 @@ async function playCards() {
         const myHand = gameState.hands[currentRoom.playerPosition];
         const index = myHand.findIndex(c => JSON.stringify(c) === JSON.stringify(selectedCards[0]));
         if (index > -1) myHand.splice(index, 1);
-        selectedCards = [];
+        selectedCards.length = 0;
 
         // Find partner (opposite player)
         const myPosition = currentRoom.playerPosition;
@@ -1566,7 +1601,7 @@ async function playCards() {
         gameState.wish = null;
     }
 
-    selectedCards = [];
+    selectedCards.length = 0;
 
     // Check if player finished
     if (myHand.length === 0) {
@@ -1642,7 +1677,7 @@ function passTurn() {
     logPlayerPass(currentRoom.playerPosition);
 
     // IMPORTANT: Clear selected cards FIRST before any logic
-    selectedCards.splice(0, selectedCards.length); // Clear array completely
+    selectedCards.length = 0; // Clear array completely (safer method)
     console.log('  ✅ 선택 카드 초기화 완료, 현재 길이:', selectedCards.length);
 
     gameState.consecutivePasses++;
