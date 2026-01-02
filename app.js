@@ -1,3 +1,8 @@
+// Quadbet - Tichu Card Game v1.8.7
+console.log('%c🎴 Quadbet - Tichu v1.8.7 🎴', 'background: #667eea; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+console.log('✅ 1-card 버그 완전 해결 + 모바일 UI 개선');
+console.log('📱 GitHub Pages: https://wjdtjq1121.github.io/Quadbet/');
+
 // Global error handler with rate limiting
 let lastErrorTime = 0;
 let errorCount = 0;
