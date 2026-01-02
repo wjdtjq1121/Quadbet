@@ -1682,6 +1682,8 @@ async function playCards() {
     }
 
     // Check if Wish card (숫자 1) is played - ask for wish
+    console.log('🔍 소원 카드 체크:', selectedCards.map(c => `${c.name || c.value}${c.suit ? c.suit[0] : ''} (isSpecial: ${c.isSpecial})`).join(', '));
+    console.log('🔍 containsMahJong 결과:', containsMahJong(selectedCards));
     if (containsMahJong(selectedCards)) {
         console.log('🎴 소원(숫자 1) 카드 발견! 소원을 빌 수 있습니다.');
 

@@ -3,7 +3,7 @@
     "rooms": {
       "$roomCode": {
         ".read": true,
-        ".write": "!data.exists() || data.child('host').val() === newData.child('host').val()",
+        ".write": true,
         "players": {
           "$playerId": {
             ".write": true
