@@ -640,6 +640,78 @@
             margin-top: 20px;
         }
 
+        /* Game Log Styles */
+        .game-log-section {
+            background: #f8f9fa;
+            border-top: 2px solid #ddd;
+            padding: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .score-log-section {
+            background: #fff;
+            border-top: 1px solid #ddd;
+            padding: 20px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .log-header {
+            margin-bottom: 15px;
+        }
+        
+        .log-header h3 {
+            color: #333;
+            font-size: 1.2em;
+            margin: 0;
+        }
+        
+        .log-content, .score-log-content {
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+            color: #555;
+        }
+        
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .log-entry.action {
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        
+        .log-entry.win {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .score-entry {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .score-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .score-entry .player {
+            font-weight: bold;
+        }
+        
+        .score-entry .points {
+            color: #667eea;
+        }
+
         /* Utility */
         .text-center {
             text-align: center;
@@ -769,7 +841,24 @@
 
             .game-board {
                 padding: 10px;
-                padding-bottom: 140px; /* Space for fixed controls */
+                padding-bottom: 500px; /* Space for fixed controls + log sections */
+            }
+            
+            .game-log-section, .score-log-section {
+                position: fixed;
+                left: 0;
+                right: 0;
+                z-index: 99;
+                max-height: 120px;
+                padding: 10px;
+            }
+            
+            .game-log-section {
+                bottom: 180px; /* Above score log */
+            }
+            
+            .score-log-section {
+                bottom: 60px; /* Above controls */
             }
 
             /* Menu buttons */
@@ -1316,6 +1405,26 @@
                 <button class="btn btn-secondary" id="btn-pass">패스</button>
                 <button class="btn btn-success" id="btn-new-round">새 라운드</button>
                 <button class="btn btn-danger" id="btn-leave-game">게임 나가기</button>
+            </div>
+            
+            <!-- Game Log Section -->
+            <div class="game-log-section" id="game-log-section">
+                <div class="log-header">
+                    <h3>게임 로그</h3>
+                </div>
+                <div class="log-content" id="game-log">
+                    <div class="log-entry">게임이 시작되었습니다.</div>
+                </div>
+            </div>
+            
+            <!-- Score Log Section -->
+            <div class="score-log-section" id="score-log-section">
+                <div class="log-header">
+                    <h3>점수 기록</h3>
+                </div>
+                <div class="score-log-content" id="score-log">
+                    <div class="score-entry">라운드 시작 전입니다.</div>
+                </div>
             </div>
         </div>
     </div>

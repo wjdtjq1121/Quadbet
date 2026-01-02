@@ -68,6 +68,122 @@ let botPlayers = {}; // Track which players are bots
 let botTimers = {}; // Track bot play timers
 let autoPassPending = false; // Prevent duplicate auto-pass calls
 
+// ==================== GAME LOG FUNCTIONS ====================
+
+// Initialize game log
+function initializeGameLog() {
+    const logElement = document.getElementById('game-log');
+    if (logElement) {
+        logElement.innerHTML = '<div class="log-entry">게임이 시작되었습니다.</div>';
+    }
+}
+
+// Add game log entry
+function addGameLog(message, type = 'normal') {
+    const logElement = document.getElementById('game-log');
+    if (!logElement) return;
+    
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.textContent = message;
+    
+    logElement.appendChild(entry);
+    logElement.scrollTop = logElement.scrollHeight; // Auto scroll to bottom
+    
+    // Keep only last 20 entries
+    const entries = logElement.querySelectorAll('.log-entry');
+    if (entries.length > 20) {
+        entries[0].remove();
+    }
+}
+
+// Log card play
+function logCardPlay(playerPosition, cards, combinationType) {
+    const room = window.currentGameRoom;
+    if (!room || !room.players) return;
+    
+    const player = room.players[playerPosition];
+    const playerName = player ? player.nickname : `플레이어 ${playerPosition}`;
+    
+    const cardNames = cards.map(card => {
+        if (card.isSpecial) {
+            // Special card names mapping
+            const specialNames = {
+                'One': '소원(1)',
+                'Mah Jong': '소원(1)', 
+                'Cat': '고양이',
+                'Dog': '고양이',
+                'Phoenix': '컬러조커',
+                'Dragon': '호랑이',
+                'Agni': '아그니'
+            };
+            return specialNames[card.name] || card.name;
+        }
+        return card.value;
+    }).join(', ');
+    
+    const message = `${playerName}가 ${combinationType} ${cardNames}를 냈습니다.`;
+    addGameLog(message, 'action');
+}
+
+// Log turn win (taking the trick)
+function logTurnWin(playerPosition) {
+    const room = window.currentGameRoom;
+    if (!room || !room.players) return;
+    
+    const player = room.players[playerPosition];
+    const playerName = player ? player.nickname : `플레이어 ${playerPosition}`;
+    
+    const message = `${playerName}가 선을 먹었습니다.`;
+    addGameLog(message, 'win');
+}
+
+// Log player passing
+function logPlayerPass(playerPosition) {
+    const room = window.currentGameRoom;
+    if (!room || !room.players) return;
+    
+    const player = room.players[playerPosition];
+    const playerName = player ? player.nickname : `플레이어 ${playerPosition}`;
+    
+    const message = `${playerName}가 패스했습니다.`;
+    addGameLog(message);
+}
+
+// Log round scores
+function logRoundScores(teamScores, playerFinishOrder) {
+    const scoreElement = document.getElementById('score-log');
+    if (!scoreElement) return;
+    
+    const room = window.currentGameRoom;
+    if (!room || !room.players) return;
+    
+    // Add round separator
+    const separator = document.createElement('div');
+    separator.className = 'score-entry';
+    separator.innerHTML = '<strong>=== 라운드 끝 ===</strong>';
+    scoreElement.appendChild(separator);
+    
+    // Add team scores
+    const team1Score = document.createElement('div');
+    team1Score.className = 'score-entry';
+    team1Score.innerHTML = `<span class="player">팀 1 (남-북)</span><span class="points">+${teamScores[0]}점</span>`;
+    scoreElement.appendChild(team1Score);
+    
+    const team2Score = document.createElement('div');
+    team2Score.className = 'score-entry';
+    team2Score.innerHTML = `<span class="player">팀 2 (동-서)</span><span class="points">+${teamScores[1]}점</span>`;
+    scoreElement.appendChild(team2Score);
+    
+    scoreElement.scrollTop = scoreElement.scrollHeight;
+    
+    // Keep only last 10 entries
+    const entries = scoreElement.querySelectorAll('.score-entry');
+    if (entries.length > 10) {
+        entries[0].remove();
+    }
+}
+
 // ==================== UTILITY FUNCTIONS ====================
 
 function showScreen(screenId) {
@@ -779,6 +895,12 @@ function startMultiplayerGame(room) {
     console.log('🎮 게임 시작!', room);
 
     showScreen('game-screen');
+    
+    // Store room reference for logging
+    window.currentGameRoom = room;
+    
+    // Initialize game log
+    initializeGameLog();
 
     // Normalize game state to handle Firebase serialization
     gameState = normalizeGameState(room.gameState);
@@ -1412,6 +1534,9 @@ async function playCards() {
     if (!gameState.currentTrickCards) gameState.currentTrickCards = [];
     gameState.currentTrickCards.push(...selectedCards);
     console.log(`📥 트릭에 카드 추가: ${selectedCards.length}장 (총 ${gameState.currentTrickCards.length}장)`);
+    
+    // Log the card play
+    logCardPlay(currentRoom.playerPosition, selectedCards, combination.type);
 
     // Remove cards from hand
     const myHand = gameState.hands[currentRoom.playerPosition];
@@ -1512,6 +1637,9 @@ function passTurn() {
 
     // Clear auto-pass flag
     autoPassPending = false;
+    
+    // Log the pass
+    logPlayerPass(currentRoom.playerPosition);
 
     // IMPORTANT: Clear selected cards FIRST before any logic
     selectedCards.splice(0, selectedCards.length); // Clear array completely
@@ -1529,6 +1657,9 @@ function passTurn() {
         if (gameState.lastPlayerToPlay !== null && gameState.currentTrickCards && gameState.currentTrickCards.length > 0) {
             const winner = gameState.lastPlayerToPlay;
             console.log(`🏆 플레이어 ${winner}가 트릭의 ${gameState.currentTrickCards.length}장 카드를 획득했습니다!`);
+            
+            // Log who won the trick
+            logTurnWin(winner);
 
             if (!gameState.wonCards) gameState.wonCards = { 0: [], 1: [], 2: [], 3: [] };
             if (!gameState.wonCards[winner]) gameState.wonCards[winner] = [];
