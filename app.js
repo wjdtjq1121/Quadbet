@@ -317,29 +317,18 @@ async function startDeveloperMode() {
         // Initialize game state
         console.log('🎮 게임 상태 초기화...');
         gameState = initializeGameState();
-        gameState.round.active = true;
         
-        // Deal cards
-        const deck = createDeck();
-        const shuffledDeck = shuffleDeck(deck);
+        // Create proper round structure
+        gameState.round = {
+            active: true,
+            number: 1
+        };
         
-        for (let i = 0; i < 4; i++) {
-            gameState.hands[i] = shuffledDeck.slice(i * 14, (i + 1) * 14);
-        }
-        
-        // Find starting player (who has Mah Jong/숫자 1)
-        gameState.currentPlayer = 0; // Default to player for testing
-        for (let i = 0; i < 4; i++) {
-            const hasMahJong = gameState.hands[i].some(card => 
-                card.isSpecial && (card.name === 'One' || card.name === 'Mah Jong')
-            );
-            if (hasMahJong) {
-                gameState.currentPlayer = i;
-                break;
-            }
-        }
+        // Create proper scores structure  
+        gameState.scores = [0, 0]; // Team scores [team1, team2]
         
         console.log('🎯 시작 플레이어:', gameState.currentPlayer);
+        console.log('✅ 게임 상태:', gameState);
         
         // Initialize game log
         initializeGameLog();
