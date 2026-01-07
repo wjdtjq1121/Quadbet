@@ -674,36 +674,24 @@
             transform: translateY(0);
         }
 
-        /* Game Log Styles - GLOBAL FIXED POSITIONING */
+        /* Game Log Styles - Normal positioning at bottom */
         .game-log-section, .score-log-section {
-            position: fixed !important;
-            left: 0 !important;
-            right: 0 !important;
-            width: 100vw !important;
-            z-index: 9999 !important;
-            max-height: 120px !important;
-            padding: 10px !important;
-            overflow-y: auto !important;
-            background: rgba(248, 249, 250, 0.95) !important;
-            backdrop-filter: blur(10px) !important;
-            -webkit-backdrop-filter: blur(10px) !important;
-            border-top: 2px solid #ddd !important;
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.15) !important;
-            transform: translateZ(0) !important; /* Force hardware acceleration */
-            will-change: transform !important; /* Optimize for animations */
-            -webkit-transform: translateZ(0) !important; /* iOS Safari fix */
-            margin: 0 !important;
-            top: auto !important;
+            margin: 20px 0;
+            max-height: 300px;
+            padding: 15px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         
         .game-log-section {
-            bottom: 180px !important; /* Above score log */
-            background: rgba(248, 249, 250, 0.95) !important;
+            background: #f8f9fa;
         }
         
         .score-log-section {
-            bottom: 60px !important; /* Above controls */
-            background: rgba(255, 255, 255, 0.95) !important;
+            background: #ffffff;
         }
         
         .log-header {
@@ -1517,6 +1505,25 @@
         </div>
     </div>
 
+    <!-- Dragon Choice Modal -->
+    <div class="modal" id="dragon-choice-modal">
+        <div class="modal-content">
+            <h2>🐉 용 카드 - 상대팀 선택</h2>
+            <p>용 카드로 트릭을 이겼습니다! 카드를 받을 상대팀 플레이어를 선택하세요.</p>
+            <p style="color: #e74c3c; margin-top: 10px;">선택한 플레이어가 용(25점) + 트릭의 모든 카드를 받습니다.</p>
+            <div class="dragon-choice-buttons" style="display: flex; gap: 15px; margin: 20px 0; justify-content: center;">
+                <button class="btn btn-danger dragon-choice-btn" id="dragon-choice-0" style="display: none;">
+                    <div class="player-name"></div>
+                    <div style="font-size: 0.8em; color: #fff; margin-top: 5px;">카드 수: <span class="card-count">0</span></div>
+                </button>
+                <button class="btn btn-danger dragon-choice-btn" id="dragon-choice-1" style="display: none;">
+                    <div class="player-name"></div>
+                    <div style="font-size: 0.8em; color: #fff; margin-top: 5px;">카드 수: <span class="card-count">0</span></div>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -1525,8 +1532,8 @@
 
     <!-- PWA Service Worker Registration -->
     <script>
-        // Register service worker for PWA functionality
-        if ('serviceWorker' in navigator) {
+        // Register service worker for PWA functionality (only for http/https)
+        if ('serviceWorker' in navigator && location.protocol !== 'file:') {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
                     .then(registration => {
